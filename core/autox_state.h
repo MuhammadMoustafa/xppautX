@@ -269,6 +269,7 @@ struct AutoxEvaluation {
   bool parallel_ready=false; /* xpp::autox_parallel_ready: the model can be evaluated on copies of its values */
   bool exact_jacobian=false; /* the numerics' Jacobian is JACOBIAN_EXACT */
   bool chained_map=false;    /* a map applied store_every times (more than once) per point */
+  double time=autox_default_time; /* the t the equations are evaluated at: the frozen_time option, or the default (W867) */
 };
 
 /* One autoX run: do_autox makes it, the translated routines reach it through

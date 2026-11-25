@@ -678,9 +678,9 @@ xpp::Result<> newton_iterate(EquilibriumModel &model, double *x, double err, dou
  return {};
 }
 
-xpp::Result<> newton_iterate(xpp::AnalysisParts &s, double *x, double err, double eps, double big, double *work, NewtonRun &run, int maxit, int n)
+xpp::Result<> newton_iterate(xpp::AnalysisParts &s, double *x, double err, double eps, double big, double *work, NewtonRun &run, int maxit, int n, double time)
 {
- const auto model=session_equilibrium_model(s,n);
+ const auto model=session_equilibrium_model(s,n,time);
  return newton_iterate(*model,x,err,eps,big,work,run,maxit,n);
 }
 
@@ -688,12 +688,12 @@ namespace {
 /* the Session's own right-hand side and Jacobian, and its front end's keys */
 class SessionEquilibriumModel final : public EquilibriumModel {
 public:
-  SessionEquilibriumModel(AnalysisParts &s,int n) : s_(s), n_(n) { job::compute_begin(); } /* what Escape stops (xpp_job.h) */
+  SessionEquilibriumModel(AnalysisParts &s,int n,double time) : s_(s), n_(n), time_(time) { job::compute_begin(); } /* what Escape stops (xpp_job.h) */
   ~SessionEquilibriumModel() override { job::compute_end(); }
-  void rhs(const double *x,double *f) override { s_.integrator->rhs(0.0,const_cast<double *>(x),f,n_); }
+  void rhs(const double *x,double *f) override { s_.integrator->rhs(time_,const_cast<double *>(x),f,n_); }
   void jacobian(const double *x,const double *f0,double eps,const JacobianForm &form,double *out) override
   {
-    xpp::jacobian(s_,0.0,x,f0,n_,eps,form,out);
+    xpp::jacobian(s_,time_,x,f0,n_,eps,form,out);
   }
   bool discrete() const override { return xpp::solver_info(s_.numerics->method).traits.discrete; }
   bool stopped() override
@@ -709,11 +709,12 @@ public:
 private:
   AnalysisParts &s_;
   int n_;
+  double time_; /* the t the right-hand side is evaluated at */
 };
 } // namespace
 
-std::unique_ptr<EquilibriumModel> session_equilibrium_model(xpp::AnalysisParts &s, int n)
+std::unique_ptr<EquilibriumModel> session_equilibrium_model(xpp::AnalysisParts &s, int n, double time)
 {
- return std::make_unique<SessionEquilibriumModel>(s,n);
+ return std::make_unique<SessionEquilibriumModel>(s,n,time);
 }
 } // namespace xpp

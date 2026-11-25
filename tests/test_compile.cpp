@@ -135,7 +135,7 @@ void same_rhs(xpp::Session &s)
     if (m.rhs_impurity.empty()) {
         auto c=constants;
         auto v=variables;
-        pure_rhs(s,y.data(),ydot.data(),c.data(),v.data(),s.parser.native_work);
+        pure_rhs(s,0.0,y.data(),ydot.data(),c.data(),v.data(),s.parser.native_work);
         s.parser.variables=variables;
         fix_only(s);
         for (size_t i=node+1;i<=node+static_cast<size_t>(m.fix_var);++i) CHECK(bits(s.parser.variables[i])==bits(v[i]));

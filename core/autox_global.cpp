@@ -99,7 +99,7 @@ public:
     void jacobian(const double *x, const double *f0, double eps, const JacobianForm &form, double *out) override
     {
         /* the constants are par's: the rhs at x just set them */
-        model_jacobian(run_.parts->analysis, run_.jacobian_scratch, autox_constants(run_).data(), 0.0,
+        model_jacobian(run_.parts->analysis, run_.jacobian_scratch, autox_constants(run_).data(), run_.evaluation.time,
                        [&](double *xp, double *f) { rhs(xp, f); }, x, f0, static_cast<int>(ndm_), eps, form, out);
     }
     bool discrete() const override { return solver_info(run_.parts->numerics->method).traits.discrete; }
@@ -206,7 +206,7 @@ std::unique_ptr<EquilibriumModel> autox_equilibrium_model(const iap_type &iap, c
     if (iap.run->pure_rhs) return std::make_unique<RunEquilibriumModel>(iap, par, icp);
     std::vector<double> f(static_cast<std::size_t>(iap.ndm));
     autox_evaluate_at(iap, par, icp, state, f); /* the Session's constants at par, which its evaluation reads */
-    return session_equilibrium_model(iap.run->parts->analysis, static_cast<int>(iap.ndm));
+    return session_equilibrium_model(iap.run->parts->analysis, static_cast<int>(iap.ndm), iap.run->evaluation.time);
 }
 
 void autox_evaluate_at(const iap_type &iap, const double *par, const std::ptrdiff_t *icp, std::span<const double> x,

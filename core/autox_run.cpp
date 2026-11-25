@@ -676,8 +676,9 @@ const AutoxRunRow &autox_run_row_for(const GRABPT &point)
   return autox_run_rows.back(); /* every `other` family has a row, so this is the last */
 }
 
-Result<> autox_time_check(const AutoxParts &s)
+AutoxTimeUse autox_time_use(const AutoxParts &s)
 {
+  AutoxTimeUse use;
   const Model &m = s.model();
   std::vector<char> checked_fixed(static_cast<std::size_t>(m.fix_var), 0), checked_function(static_cast<std::size_t>(m.compiler.nfun), 0);
   /* whether the program reads t (the variable 0), directly or through a fixed variable or a user function */
@@ -702,22 +703,36 @@ Result<> autox_time_check(const AutoxParts &s)
     return false;
   };
   std::vector<std::string> equations;
-  Place first;
   for (int i = 0; i < m.node; ++i) {
     std::fill(checked_fixed.begin(), checked_fixed.end(), 0);
     std::fill(checked_function.begin(), checked_function.end(), 0);
     if (!reads_time(reads_time, m.programs[static_cast<std::size_t>(i)], -1)) continue;
     const std::string &name = m.uvar_names[static_cast<std::size_t>(i)];
     const Place place = model_place(m, name);
-    if (equations.empty()) first = place;
-    equations.push_back(xpp::format("{}' ({}:{})", name, place.file.empty() ? m.this_file : place.file, place.line));
+    if (use.equations.empty()) use.first = place;
+    use.equations.push_back(xpp::format("{}' ({}:{})", name, place.file.empty() ? m.this_file : place.file, place.line));
   }
-  if (equations.empty()) return {};
-  std::string list;
-  for (const std::string &equation : equations) list += xpp::format("{}{}", list.empty() ? "" : ", ", equation);
-  return fail("autox", xpp::format("autoX runs equations that do not depend on t, and evaluates them at t = 0; {} use t. Add t as a state "
-                                  "(an oscillator, see \"Equations that use t\" in the autoX manual and examples/tstauto/frcp.odex)", list),
-              first.line > 0 ? first : command_place());
+  for (const std::string &equation : use.equations) use.list += xpp::format("{}{}", use.list.empty() ? "" : ", ", equation);
+  return use;
+}
+
+Result<> autox_time_check(const AutoxParts &s)
+{
+  const AutoxTimeUse use = autox_time_use(s);
+  if (use.equations.empty() || s.autox_state->frozen_time) return {};
+  return fail("autox", xpp::format("autoX runs equations that use t: set the option continuation.frozen_time to the value t is held at "
+                                  "(0 is XPPAUT's); {} use t. Or add t as a state "
+                                  "(an oscillator, see \"Equations that use t\" in the autoX manual and examples/tstauto/frcp.odex)", use.list),
+              use.first.line > 0 ? use.first : command_place());
+}
+
+/* the run's line, once, when the frozen t applies to equations that use it: what t it holds and the equations (W867) */
+static std::optional<std::string> autox_time_note(const AutoxParts &s)
+{
+  if (!s.autox_state->frozen_time) return std::nullopt;
+  const AutoxTimeUse use = autox_time_use(s);
+  if (use.equations.empty()) return std::nullopt;
+  return xpp::format("autoX holds t at continuation.frozen_time = {} for the run: {} use t", xpp::number(*s.autox_state->frozen_time), use.list);
 }
 
 Result<> autox_run_check(const AutoxParts &s, const AutoxRunRequest &request, const GRABPT *point, bool settling)
@@ -895,12 +910,16 @@ Result<> autox_run_start(AutoxParts s, const AutoxRunRequest &request)
   a.stop.followed = 0;
   const std::size_t before = diagram_stored_points(s);
   const Result<> ran = start_run(s, request);
+  /* the frozen t's line leads the run's Output, once: the run's end sends it, or the log when the run stored nothing */
+  const std::optional<std::string> held = ran ? autox_time_note(s) : std::nullopt;
   if (diagram_stored_points(s) > before || !a.stop.ends.empty()) {
     const std::size_t first = request.replace_diagram && !request.from_point ? 0 : before;
-    const XppRunSummary summary = summarize_run(s, first);
+    XppRunSummary summary = summarize_run(s, first);
+    if (held) summary.lines.insert(summary.lines.begin(), *held);
     for (const std::string &line : summary.lines) xpp::log_autox("{}\n", line);
     autox_summary(summary);
   }
+  else if (held) xpp::log_autox("{}\n", *held);
   return ran;
 }
 

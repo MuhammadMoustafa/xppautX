@@ -125,7 +125,7 @@ void autox_check_start_equilibrium(const iap_type &iap, const rap_type &rap, dou
   std::vector<double> start(u,u+n);
   std::vector<double> work(static_cast<std::size_t>(n*n+2*n));
   xpp::NewtonRun newton;
-  if(auto r=xpp::newton_iterate(s.analysis,u,eq.newton_tolerance,eq.jacobian_step,eq.search_limit,work.data(),newton,eq.max_iterations,n);!r)
+  if(auto r=xpp::newton_iterate(s.analysis,u,eq.newton_tolerance,eq.jacobian_step,eq.search_limit,work.data(),newton,eq.max_iterations,n,iap.run->evaluation.time);!r)
     autox_fail(r.error());
   if(newton.end!=xpp::NewtonEnd::converged){
     std::copy(start.begin(),start.end(),u);

@@ -53,12 +53,12 @@ void exact_derivatives(const xpp::AutoxParts &s, AutoxRun &run, const double *c,
 {
   const int n=static_cast<int>(ndim);
   try {
-    xpp::exact_jacobian(s.analysis,run.jacobian_scratch,run.native_work_count(),c,0.0,u,f,n,{xpp::JacobianLayout::ColumnMajor},dfdu);
+    xpp::exact_jacobian(s.analysis,run.jacobian_scratch,run.native_work_count(),c,run.evaluation.time,u,f,n,{xpp::JacobianLayout::ColumnMajor},dfdu);
     if(ijac<2)return;
     for(std::ptrdiff_t i=0;i<nfpr;i++){
       double *column=dfdp+icp[i]*ndim;
       const int k=run.evaluation.parameter_layout.model_index(static_cast<int>(icp[i]));
-      if(k>=0)xpp::exact_constant_derivative(s.analysis,run.jacobian_scratch,run.native_work_count(),c,s.model().upar_con[k],0.0,u,f,n,column);
+      if(k>=0)xpp::exact_constant_derivative(s.analysis,run.jacobian_scratch,run.native_work_count(),c,s.model().upar_con[k],run.evaluation.time,u,f,n,column);
       else std::fill_n(column,n,0.0);
     }
   } catch (const xpp::JacobianFailed &failed) {
@@ -116,17 +116,17 @@ bool continued_constants(const xpp::AutoxParts &s, double *constants, const std:
    are worked out again only when a continued parameter actually changed,
    including either side of its difference. With no function table, nothing
    else depends on a parameter. */
-void pure_values(const xpp::AutoxParts &s, std::uint64_t &native_work, double *c, double *v, const double *u, const std::ptrdiff_t *icp, std::ptrdiff_t nfpr, std::span<const double> parameters, double *f)
+void pure_values(const xpp::AutoxParts &s, std::uint64_t &native_work, double *c, double *v, double time, const double *u, const std::ptrdiff_t *icp, std::ptrdiff_t nfpr, std::span<const double> parameters, double *f)
 {
   if(continued_constants(s,c,icp,nfpr,parameters))
     xpp::evaluate_derived_pure(s.parser,c,v);
-  pure_rhs(s.analysis,u,f,c,v,native_work);
+  pure_rhs(s.analysis,time,u,f,c,v,native_work);
 }
 
 void worker_func(const xpp::AutoxParts &s, AutoxRun &worker, std::ptrdiff_t ndim, const double *u, const std::ptrdiff_t *icp, std::ptrdiff_t nfpr, std::span<const double> parameters, std::ptrdiff_t ijac, double *f, double *dfdu, double *dfdp)
 {
   double *c=worker.rhs_constants.data();
-  pure_values(s,worker.native_work_count(),c,worker.rhs_variables.data(),u,icp,nfpr,parameters,f);
+  pure_values(s,worker.native_work_count(),c,worker.rhs_variables.data(),worker.evaluation.time,u,icp,nfpr,parameters,f);
   if(ijac!=0&&worker.evaluation.exact_jacobian)exact_derivatives(s,worker,c,ndim,u,f,icp,nfpr,ijac,dfdu,dfdp);
 }
 
@@ -179,18 +179,18 @@ namespace {
    /* the right-hand side and the Jacobian only read the point */
    double *x=const_cast<double *>(u);
    if(run.evaluation.parallel_ready)
-     pure_values(s,run.native_work_count(),s.parser.constants.data(),s.parser.variables.data(),x,icp,nfpr,parameters,f);
+     pure_values(s,run.native_work_count(),s.parser.constants.data(),s.parser.variables.data(),run.evaluation.time,x,icp,nfpr,parameters,f);
    else{
      continued_constants(s,s.parser.constants.data(),icp,nfpr,parameters);
      xpp::evaluate_derived(s.parser);
      if(auto r=xpp::redo_all_fun_tables(s.session_parts);!r)xpp::autox_fail(r.error());
-     s.integrator->rhs(0.0,x,f,ndim);
+     s.integrator->rhs(run.evaluation.time,x,f,ndim);
      if(s.parser.step_error)xpp::autox_fail(xpp::take_step_error(s.analysis).error());
    }
    const double *c=s.parser.constants.data();
    if(exact)exact_derivatives(s,run,c,ndim,x,f,icp,nfpr,ijac,dfdu,dfdp);
    else if(ijac==1){
-     xpp::jacobian(s.analysis,0.0,x,f,ndim,s.numerics->equilibria.jacobian_step,{xpp::JacobianLayout::ColumnMajor},dfdu);
+     xpp::jacobian(s.analysis,run.evaluation.time,x,f,ndim,s.numerics->equilibria.jacobian_step,{xpp::JacobianLayout::ColumnMajor},dfdu);
    }
    if(!run.evaluation.chained_map)return;
    /* the map applied store_every times: its exact Jacobian is the product
@@ -210,7 +210,7 @@ namespace {
    for(i=1;i<s.numerics->store_every;i++){
      for(j=0;j<ndim;j++)
        zz[j]=f[j];
-     s.integrator->rhs(0.0,zz.data(),f,ndim);
+     s.integrator->rhs(run.evaluation.time,zz.data(),f,ndim);
      if(s.parser.step_error)xpp::autox_fail(xpp::take_step_error(s.analysis).error());
      if(!exact)continue;
      exact_derivatives(s,run,c,ndim,zz.data(),f,icp,nfpr,ijac,step.data(),step_p.data());
@@ -234,7 +234,7 @@ int user_right_hand_side(AutoxRun &run, std::ptrdiff_t ndim, const double *u, co
 
 void func_again(AutoxRun &run, std::ptrdiff_t ndim, const double *u, const std::ptrdiff_t *icp, std::ptrdiff_t nfpr, const double *par, double *f)
 {
-   if(run.pure_rhs)pure_rhs(run.parts->analysis,u,f,run.rhs_constants.data(),run.rhs_variables.data(),run.native_work_count());
+   if(run.pure_rhs)pure_rhs(run.parts->analysis,run.evaluation.time,u,f,run.rhs_constants.data(),run.rhs_variables.data(),run.native_work_count());
    else user_right_hand_side(run,ndim,u,icp,nfpr,par,0,f,nullptr,nullptr);
 }
 
@@ -246,7 +246,8 @@ void autox_bind_parts(AutoxRun &run, xpp::AutoxParts s)
   run.evaluation={.parameter_layout=s.autox_state->parameter_layout,
                   .parallel_ready=xpp::autox_parallel_ready(s),
                   .exact_jacobian=s.numerics->jacobian==xpp::JACOBIAN_EXACT,
-                  .chained_map=xpp::solver_info(s.numerics->method).traits.discrete&&s.numerics->store_every!=1};
+                  .chained_map=xpp::solver_info(s.numerics->method).traits.discrete&&s.numerics->store_every!=1,
+                  .time=s.autox_state->frozen_time.value_or(autox_default_time)};
 }
 
 void autox_fill_parameters(const AutoxRun &run, double *par)

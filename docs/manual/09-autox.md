@@ -509,7 +509,7 @@ Open the script like a model (File > Open model, Explorer or Finder, or `xppautX
 
 ### Equations that use t
 
-autoX evaluates the equations at a fixed t = 0, so a model whose equations use `t` is refused (each equation's file and line named); give `t` a state of its own, as `examples/tstauto/frcp.odex` does with an oscillator, and autoX continues it as an ordinary autonomous system.
+autoX holds `t` at a fixed value, so a model whose equations use `t` is refused unless the option **continuation.frozen_time** is set: each equation's file and line are named and the refusal names the option. The option is off by default (left empty); set to a number, say `0` as XPPAUT uses, autoX evaluates the equations at that t, and the run's output says once which t it holds and which equations use it. Without the option, the other way is to give `t` a state of its own, as `examples/tstauto/frcp.odex` does with an oscillator, and autoX continues it as an ordinary autonomous system. A forced oscillator such as `examples/ode/fhn.odex` (its forcing `s(t)`) is continued at the t you freeze it at: the first point solves the equations at that t. The option sits in the continuation group of the Numerics, and in a `.odex` as `continuation.frozen_time`; `.ode` files do not set it, since XPPAUT has no such option.
 
 ### End of branch (EP)
 

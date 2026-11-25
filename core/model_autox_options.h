@@ -2,6 +2,7 @@
 /* autoX's options the option table's rows set (the continuation group's ntst, ds, ..., the advanced numerics, the codimension-two
    kinds): plain data, which a Session's AutoxState (autox_state.h, autoX's) extends with the window's and the runs' state (W757). */
 #include <array>
+#include <optional>
 #include "autox_codes.h"
 
 /* the autoX options the model's @ options give (autox_ntst=, ...), which
@@ -9,6 +10,8 @@
 // A nonnegative norm has no useful lower default; the upper bound leaves ordinary branches unrestricted.
 inline constexpr double autox_default_norm_min=0.0;
 inline constexpr double autox_default_norm_max=1e100;
+/* the t autoX evaluates a model at when no frozen_time is set: the value XPPAUT uses, and the one a model that does not use t never reads (W867) */
+inline constexpr double autox_default_time=0.0;
 struct AutoxOptions {
   int ntst=15,nmx=200,npr=50,ncol=4;
   double ds=.02,dsmax=.5,dsmin=.001;
@@ -53,4 +56,6 @@ struct AutoxSettings {
   bool follow_all_branches=true;
   // AUTO-07p enables codimension-two detection by default.
   std::array<bool, xpp::autox_codim_kinds.size()> special_points=all_special_points();
+  /* the value t is held at when the model's equations use t (W867): none (the default) refuses such a run, a value runs it at that t */
+  std::optional<double> frozen_time;
 };

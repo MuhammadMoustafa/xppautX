@@ -1667,6 +1667,51 @@ def check_autox_multiplier_note():
 HOPF_TYPES = ('hopf', 'zero_hopf', 'generalized_hopf')
 
 
+def check_autox_frozen_time():
+    """W867 (#949): a model whose equations use t is refused without the continuation.frozen_time option, the refusal naming
+    the option; with it, the run holds t at that value, says so once in its log, and its first point solves the equations
+    at that t (the residual is zero there, and not at t = 0). examples/ode/fhn.odex is XPPAUT's forced FitzHugh-Nagumo demo:
+    s(t) = al*sin(omega*t), omega 2, so at t = pi/4 the forcing is al, and at t = 0 it is 0."""
+    frozen = math.pi / 4
+    alpha, a, eps, gamma, i0 = 0.5, 0.25, 0.05, 1.0, 0.25
+    s = Server(args.server, autoxcompare.ROOT / 'examples/ode/fhn.odex')
+    try:
+        autoxcompare.completed(s)
+        autoxcompare.completed(s, dict(cmd='autox.open'))
+        autoxcompare.completed(s, dict(cmd='value.set_parameters', values={'al': alpha}))
+        s.send(cmd='autox.run', kind='equilibrium', replace_diagram=False)
+        _, done = s.collect(stops_done)
+        check('W867: without the option, a run of a model that uses t is refused, naming continuation.frozen_time',
+              done is not None and done.get('status') == 'error' and 'continuation.frozen_time' in done.get('error', ''), str(done)[:300])
+        set_done = autoxcompare.completed(s, dict(cmd='options.configure', group='continuation', values={'frozen_time': repr(frozen)}))
+        check('W867: options.configure sets continuation.frozen_time', any(e.get('ev') == 'done' and e.get('status') == 'ok' for e in set_done), str(set_done)[-300:])
+        s.send(cmd='autox.run', kind='equilibrium', replace_diagram=True)
+        evs, done = s.collect(stops_done)
+        check('W867: with the option, the run is made', done is not None and done.get('status') == 'ok', str(done)[:300])
+        logged = [e for e in evs if 'holds t at continuation.frozen_time' in json.dumps(e)]
+        check('W867: the run says once what t it holds, the option and the equations that use t',
+              len(logged) == 1 and 'continuation.frozen_time = 0.7853981633974' in json.dumps(logged[0]) and "v' (" in json.dumps(logged[0]).lower() and "w' (" not in json.dumps(logged[0]).lower(), str(logged[0].get('lines', [])[:2]) if logged else 'no event')
+        rows = autoxcompare.diagram_rows(autoxcompare.session_diagram(s))
+        first = [r for r in rows if r['calc'] == 'equilibrium' and abs(int(r['ibr'])) == 1 and abs(int(r['ntot'])) == 1]
+        check('W867: the frozen run has its first point', len(first) == 1, str(first)[:300])
+        if len(first) != 1:
+            return
+        cols = {k.lower(): k for k in first[0]}
+        v, w = float(first[0][cols['u0.v']]), float(first[0][cols['u0.w']])
+
+        def residual(t):
+            return (v * (1 - v) * (v - a) - w + alpha * math.sin(2 * t) + i0, eps * (v - gamma * w))
+
+        at_frozen = residual(frozen)
+        at_zero = residual(0.0)
+        check('W867: the first point solves the equations at the frozen t (residual near zero)',
+              max(abs(x) for x in at_frozen) < 1e-6, str(at_frozen))
+        check('W867: at t = 0 the same point is not a solution of the model',
+              abs(at_zero[0]) > 0.1, str(at_zero))
+    finally:
+        s.close()
+
+
 def check_autox_first_point_stability():
     """W858 (#939): a fresh steady run's first point is stored with the eigenvalues of its own Jacobian and the stability
     they give (never the zeros of "not computed" read as unstable), and a steady state has no period: nan in the
@@ -3895,7 +3940,7 @@ def check_run_summary():
         s.close()
 
 
-INDEPENDENT_SECTIONS = {'replace': check_replace_answer, 'export': check_export_several, 'options': check_options_panels, 'atomic': check_atomic_commands, 'equilibria': check_equilibrium_settings, 'registry': check_registry, 'branchjobs': check_autox_branch_jobs, 'session': check_session_commands, 'data': check_data_value_set, 'kinescope': check_kinescope_animation_array_plot, 'firstpoint': lambda: (check_autox_first_point_stability(), check_autox_orbit_first_points(), check_autox_not_applicable()), 'stops': lambda: (check_stops(), check_autox_stops(), check_autox_starts(), check_run_summary(), check_script_refused_run(), check_script_unknown_option(), check_script_repeated_run(), check_script_hopf_cycles_replace(), check_autox_two_parameter_starts(), check_autox_periodic_start_kind(), check_autox_registry(), check_fit_stops(), check_event_count_note(), check_autox_restart_file_stops(), check_autox_multiplier_note(), check_autox_singular_pivot())}
+INDEPENDENT_SECTIONS = {'replace': check_replace_answer, 'frozen': check_autox_frozen_time, 'export': check_export_several, 'options': check_options_panels, 'atomic': check_atomic_commands, 'equilibria': check_equilibrium_settings, 'registry': check_registry, 'branchjobs': check_autox_branch_jobs, 'session': check_session_commands, 'data': check_data_value_set, 'kinescope': check_kinescope_animation_array_plot, 'firstpoint': lambda: (check_autox_first_point_stability(), check_autox_orbit_first_points(), check_autox_not_applicable()), 'stops': lambda: (check_stops(), check_autox_stops(), check_autox_starts(), check_run_summary(), check_script_refused_run(), check_script_unknown_option(), check_script_repeated_run(), check_script_hopf_cycles_replace(), check_autox_two_parameter_starts(), check_autox_periodic_start_kind(), check_autox_frozen_time(), check_autox_registry(), check_fit_stops(), check_event_count_note(), check_autox_restart_file_stops(), check_autox_multiplier_note(), check_autox_singular_pivot())}
 if args.only:
     for name in args.only.split(','):
         if name not in INDEPENDENT_SECTIONS:
@@ -14090,6 +14135,7 @@ check_script_repeated_run()
 check_script_hopf_cycles_replace()
 check_autox_two_parameter_starts()
 check_autox_periodic_start_kind()
+check_autox_frozen_time()
 check_autox_directions()
 check_autox_branch_jobs()
 check_autox_registry()

@@ -33,8 +33,9 @@ public:
   virtual bool failed() const { return false; }
   virtual Error take_failure() { return Error{}; }
 };
-/* the Session's own evaluation (it holds the computation Escape stops while it lives) */
-std::unique_ptr<EquilibriumModel> session_equilibrium_model(AnalysisParts &s, int n);
+/* the Session's own evaluation (it holds the computation Escape stops while it lives); time is the t it evaluates at (0 unless
+   an autoX run holds a frozen t, W867) */
+std::unique_ptr<EquilibriumModel> session_equilibrium_model(AnalysisParts &s, int n, double time = 0.0);
 
 /* how Newton's method for an equilibrium ended: the way it converged, or what stopped it (a failed
    evaluation of the right-hand side is newton_iterate's error, not an end) */
@@ -89,8 +90,8 @@ void numerical_jacobian(EquilibriumModel &model, double *x, double *y, double ep
 int worst_residual(const double *f, int n);
 /* (a failed exact Jacobian is its error, the point back where it was) */
 Result<> newton_iterate(EquilibriumModel &model, double *x, double err, double eps, double big, double *work, NewtonRun &run, int maxit, int n);
-/* the same on the Session's own evaluation */
-Result<> newton_iterate(AnalysisParts &s, double *x, double err, double eps, double big, double *work, NewtonRun &run, int maxit, int n);
+/* the same on the Session's own evaluation, at the t of time */
+Result<> newton_iterate(AnalysisParts &s, double *x, double err, double eps, double big, double *work, NewtonRun &run, int maxit, int n, double time = 0.0);
 
 /* Sing pts: the equilibrium Newton finds from x (Could not converge,
    no eigenvalues: an error), its stability (stabinfo) and, when asked,

@@ -113,9 +113,17 @@ Result<> autox_run_check(const AutoxParts &s, const AutoxRunRequest &request, co
    autoX run; what went wrong is the error (a start the kind does not fit names both). */
 Result<> autox_run_start(AutoxParts s, const AutoxRunRequest &request);
 
-/* A model whose equations autoX runs depends on t, directly or through a function or a fixed variable (the auxiliary
-   quantities do not count), is refused: autoX evaluates them at t = 0. The error names each such equation's file and
-   line. */
+/* The equations of a model that use t, directly or through a function or a fixed variable (the auxiliary quantities do
+   not count): each as "name' (file:line)" in list, the first one's place in first. */
+struct AutoxTimeUse {
+  std::vector<std::string> equations;
+  std::string list;
+  Place first;
+};
+AutoxTimeUse autox_time_use(const AutoxParts &s);
+
+/* A model whose equations use t is refused unless the frozen_time option is set (W867): autoX evaluates them at that t
+   (AutoxEvaluation::time). Without it the error names each such equation's file and line and the option. */
 Result<> autox_time_check(const AutoxParts &s);
 
 /* the form XPPAUT's homoclinic starts asked: the equilibria's dimensions and values, none when cancelled */

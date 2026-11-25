@@ -144,6 +144,19 @@ const char *range_item_into(const SessionParts &s, std::string &member, const Op
   return nullptr;
 }
 
+/* frozen_time (W867): empty is off, the key left out as an optional text is; otherwise the finite value t is held at */
+const char *frozen_time_into(const SessionParts &s, const OptionValue &v)
+{
+  if (v.text[0] == '\0') {
+    if (v.apply) s.autox_state->frozen_time.reset();
+    return nullptr;
+  }
+  double t = 0;
+  if (!parse_number(v.text, t) || !std::isfinite(t)) return "not a finite number, or empty for off";
+  if (v.apply) s.autox_state->frozen_time = t;
+  return nullptr;
+}
+
 /* the index of the differential equation of the variable name, none for any other name */
 std::optional<std::size_t> equation_of(const SessionParts &s, std::string_view name)
 {
@@ -645,6 +658,9 @@ constexpr OptionRow rows[] = {
      if (v.apply) s.autox_state->special_points = on;
      return nullptr;
    }, .choices = autox_codim_keys},
+  {.group = option_group::continuation, .kind = OptionKind::number, .odex = "frozen_time", .help = "The value t is held at for a model whose equations use t; empty (the default) refuses such a run.", .once = true,
+   .show = [](const SessionParts &s) { return s.autox_state->frozen_time ? xpp::number(*s.autox_state->frozen_time) : std::string(); },
+   .parse = frozen_time_into, .optional = true},
   {.group = option_group::continuation, .kind = OptionKind::whole, .odex = "limits.steps", .help = "The most continuation steps a run takes before it stops.",
    .xppaut_names = {"NMAX"}, .once = true,
    .whole = member([](auto &s) -> auto & { return s.autox_state->options.nmx; }), .autox_numeric = AUTOX_NUM_MAX_STEPS},
