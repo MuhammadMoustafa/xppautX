@@ -286,6 +286,7 @@ class Server(Client):
                 self.proc.wait(timeout=5 * SLOW)
             except (OSError, subprocess.TimeoutExpired):
                 self.proc.kill()
+                self.proc.wait()  # gone before super().close() asks alive(): a kill is not instant (Windows), and its stdin is closed
         super().close()
 
 
