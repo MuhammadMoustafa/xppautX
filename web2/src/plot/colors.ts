@@ -11,13 +11,14 @@ export type {CoreColor};
 /** each color lightened for a background, by the color and the background: cssColor runs per curve per frame */
 const lightened = new Map<string, string>();
 
-/** WCAG 2.2's contrast for a graphic (1.4.11, 3:1): a curve on the dark theme's background is lightened until it reaches this */
-export const GRAPHIC_CONTRAST = 3;
-/** how far one step raises a too-dark color's HSL lightness (0 to 1): small, so the lightening stops just past GRAPHIC_CONTRAST */
+/** the contrast a curve on the dark theme's background is lightened to: WCAG 2.2's for text (1.4.3 AA, 4.5:1), since
+    the maintainer found its ratio for a graphic (1.4.11, 3:1) left pure blue too dim (2026-11-25) */
+export const CURVE_CONTRAST = 4.5;
+/** how far one step raises a too-dark color's HSL lightness (0 to 1): small, so the lightening stops just past CURVE_CONTRAST */
 const LIGHTEN_STEP = 0.01;
 
 /** the color the canvas or CSS draws `c` in: `foreground` is the theme's --fg (tokens.css), read from the page;
-    on the dark theme a color that does not reach GRAPHIC_CONTRAST against --surface, the plots' background, is lightened
+    on the dark theme a color that does not reach CURVE_CONTRAST against --surface, the plots' background, is lightened
     (lightenForBackground) */
 export function cssColor(c: CoreColor): string {
   if (c === 'foreground') return cssVar('--fg');
@@ -65,13 +66,13 @@ export function contrastRatio(a: string, b: string): number {
 }
 
 /** `#rrggbb` (or `#rrggbbaa`, its alpha kept) lightened in HSL, hue and saturation kept, until its contrast against
-    `bg` (`#rrggbb`) reaches GRAPHIC_CONTRAST; a color that already does, or is not a hex color, comes back as it was */
+    `bg` (`#rrggbb`) reaches CURVE_CONTRAST; a color that already does, or is not a hex color, comes back as it was */
 export function lightenForBackground(c: string, bg: string): string {
   const m = CORE_HEX.exec(c);
-  if (!m || contrastRatio('#' + m[1], bg) >= GRAPHIC_CONTRAST) return c;
+  if (!m || contrastRatio('#' + m[1], bg) >= CURVE_CONTRAST) return c;
   const [h, s, l0] = toHsl('#' + m[1]);
   let l = l0, out = '#' + m[1].toLowerCase();
-  while (contrastRatio(out, bg) < GRAPHIC_CONTRAST && l < 1) {
+  while (contrastRatio(out, bg) < CURVE_CONTRAST && l < 1) {
     l = Math.min(1, l + LIGHTEN_STEP);
     out = cssToHex(`hsl(${h * 360} ${s * 100}% ${l * 100}%)`) ?? out;
   }

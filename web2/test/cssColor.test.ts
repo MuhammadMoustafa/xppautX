@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {GRAPHIC_CONTRAST, contrastRatio, cssToHex, joinColor, lightenForBackground, splitColor} from '../src/plot/colors';
+import {CURVE_CONTRAST, contrastRatio, cssToHex, joinColor, lightenForBackground, splitColor} from '../src/plot/colors';
 
 test('cssToHex gives the picker its #rrggbb for every form the page holds', () => {
   assert.equal(cssToHex('#1F2937'), '#1f2937');
@@ -37,22 +37,22 @@ const hsl = (hex: string) => {
 test('pure blue, too dark for the dark background, is lightened to the contrast, still blue', () => {
   const out = lightenForBackground('#0000ff', DARK_BG);
   assert.match(out, /^#[0-9a-f]{6}$/);
-  assert.ok(contrastRatio(out, DARK_BG) >= GRAPHIC_CONTRAST, out);
-  assert.ok(contrastRatio(out, DARK_BG) < GRAPHIC_CONTRAST + 0.5, `lightened no more than needed: ${out}`);
+  assert.ok(contrastRatio(out, DARK_BG) >= CURVE_CONTRAST, out);
+  assert.ok(contrastRatio(out, DARK_BG) < CURVE_CONTRAST + 0.5, `lightened no more than needed: ${out}`);
   const {h, s} = hsl(out);
   assert.ok(Math.abs(h - 240) < 2 && s > 0.99, `hue and saturation kept: ${out}`);
 });
 
 test('black is lightened to a grey that reads; the alpha is kept', () => {
   const black = lightenForBackground('#000000', DARK_BG);
-  assert.ok(contrastRatio(black, DARK_BG) >= GRAPHIC_CONTRAST, black);
+  assert.ok(contrastRatio(black, DARK_BG) >= CURVE_CONTRAST, black);
   const [r, g, b] = [1, 3, 5].map(i => black.slice(i, i + 2));
   assert.ok(r === g && g === b, `a grey: ${black}`);
   assert.equal(lightenForBackground('#0000ff80', DARK_BG).slice(-2), '80');
 });
 
 test('a color that already reads, a light one, and what is not a hex color come back as they were', () => {
-  assert.equal(lightenForBackground('#ff0000', DARK_BG), '#ff0000');
+  assert.equal(lightenForBackground('#00ff00', DARK_BG), '#00ff00');
   assert.equal(lightenForBackground('#ffffff', DARK_BG), '#ffffff');
   assert.equal(lightenForBackground('#0000ffcc', '#ffffff'), '#0000ffcc');
   assert.equal(lightenForBackground('foreground', DARK_BG), 'foreground');
