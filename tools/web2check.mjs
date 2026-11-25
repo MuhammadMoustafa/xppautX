@@ -6849,7 +6849,8 @@ async function nativeFiles(dir) {
   const fileCommand = async (id, reply) => {
     await cdp.eval(`window.__nativeReply = ${JSON.stringify(reply)}; true`);
     await clickRegistry(id);
-    await cdp.eval(`document.querySelector('[data-dialog-action]').click()`);
+    /* a command with more than its file shows its form first; a file-only one goes to the picker at once (W853) */
+    await cdp.eval(`document.querySelector('.registry-form [data-dialog-action]')?.click()`);
     return until('!s.busy && !s.ask', 'native picker answered');
   };
   const asked = () => cdp.eval('window.__nativeAsked.slice(-1)[0]');
