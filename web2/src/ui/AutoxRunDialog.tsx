@@ -40,10 +40,23 @@ const CURVE_NAMES: Record<string, string> = {hopf: 'Hopf curve', fold: 'Fold cur
 const DIRECTIONS = ['increase', 'decrease', 'both'] as const;
 type Direction = (typeof DIRECTIONS)[number];
 
+/** the kind a point starts by its type, first and picked: a Hopf point its periodic orbits, a fold or branch point equilibria, a torus or
+    period-doubling point its own curve (a point of another type has none, the core's order stands) */
+const FIRST_KIND: Record<string, string> = {hopf: 'periodic', fold: 'equilibrium', branch_point: 'equilibrium', neimark_sacker: 'two_parameter',
+  period_doubling: 'two_parameter'};
+/** the numerics the group's summary line shows when nothing changed: the key values in force, in the order a person reads them */
+const SUMMARY_KEYS = ['step.initial', 'step.min', 'step.max', 'limits.steps', 'mesh.intervals', 'mesh.collocation_points', 'output.every'];
+
 /** a number a field's text holds, or null when it is not one */
 function numberOf(text: string): number | null {
   const v = Number(text);
   return text.trim() !== '' && Number.isFinite(v) ? v : null;
+}
+
+/** a dimension a field's text holds: a whole number, 0 or more; null when it is not one */
+function dimensionOf(text: string): number | null {
+  const v = numberOf(text);
+  return v !== null && Number.isInteger(v) && v >= 0 ? v : null;
 }
 
 /** a list of reals typed as "a, b": null when a part is not a number */
@@ -59,7 +72,8 @@ export function AutoxRunDialog({onClose}: {onClose(): void}) {
   const settings = shownSettings(state.autoxSettings);
   const numerics = (settings?.numerics ?? {}) as Record<string, unknown>;
   const start: AutoxRunStart | null = state.diagram.start;
-  const labels = activeView(state.diagram).labels;
+  const view = activeView(state.diagram);
+  const labels = view.labels;
   const parameters = argumentNames({names: 'parameter'} as RegistryArgument, state);
   const feedback = useFeedback();
   const wide = typeof matchMedia === 'function' && matchMedia('(min-width: 80rem)').matches;
@@ -68,7 +82,9 @@ export function AutoxRunDialog({onClose}: {onClose(): void}) {
   const [fromLabel, setFromLabel] = useState(!!start);
   const [label, setLabel] = useState<number>(start?.label ?? labels[0]?.lab ?? 0);
   /* 2 what to compute: the grabbed point's kinds once autoxinfo's start is for the label picked, else the current state's */
-  const kinds = fromLabel ? (start && start.label === label ? start.kinds : []) : (table?.current ?? []);
+  const startKinds = fromLabel ? (start && start.label === label ? start.kinds : []) : (table?.current ?? []);
+  const first = fromLabel && start && start.label === label ? FIRST_KIND[start.type] : undefined;
+  const kinds = first && startKinds.includes(first) ? [first, ...startKinds.filter(k => k !== first)] : startKinds;
   const [kind, setKind] = useState('');
   const kindNow = kinds.includes(kind) ? kind : (kinds[0] ?? '');
   const [dimensions, setDimensions] = useState({unstable: '', stable: ''});
@@ -87,6 +103,8 @@ export function AutoxRunDialog({onClose}: {onClose(): void}) {
   const numericRows = rows.filter(row => row.key in numerics && !NUMERIC_ELSEWHERE.includes(row.key));
   const sections = [...new Set(numericRows.map(row => row.section_label))];
   const changed = Object.keys(edits).length;
+  const summary = SUMMARY_KEYS.every(k => k in numerics)
+    ? `step ${inForce('step.initial')} (${inForce('step.min')} to ${inForce('step.max')}) · at most ${inForce('limits.steps')} points · mesh ${inForce('mesh.intervals')} × ${inForce('mesh.collocation_points')} · label every ${inForce('output.every')}` : '';
 
   /* what is sent: the kind, the start, the clear answer, every value the person changed, the first step with the direction's sign */
   const problems: string[] = [];
@@ -103,7 +121,7 @@ export function AutoxRunDialog({onClose}: {onClose(): void}) {
     const step = numberOf(inForce(FIRST_STEP));
     if (step !== null) args[FIRST_STEP] = sign * Math.abs(step);
     if (kindNow === HOMOCLINIC) {
-      const unstable = numberOf(dimensions.unstable), stable = numberOf(dimensions.stable);
+      const unstable = dimensionOf(dimensions.unstable), stable = dimensionOf(dimensions.stable);
       const left = realsOf(equilibria.left), right = realsOf(equilibria.right);
       if (unstable !== null) args.unstable_dimension = unstable;
       if (stable !== null) args.stable_dimension = stable;
@@ -118,6 +136,9 @@ export function AutoxRunDialog({onClose}: {onClose(): void}) {
   }
   if (!kindNow) problems.push('Choose what to compute');
   if (numberOf(inForce(FIRST_STEP)) === 0) problems.push('The first step must not be 0');
+  if (kindNow === HOMOCLINIC) for (const [name, text] of [['Unstable', dimensions.unstable], ['Stable', dimensions.stable]]) {
+    if (text.trim() !== '' && dimensionOf(text) === null) problems.push(`${name} dimension must be a whole number, 0 or more`);
+  }
   if (kindNow === HOMOCLINIC && (realsOf(equilibria.left) === null || realsOf(equilibria.right) === null)) problems.push('Enter the equilibria as numbers');
   const fixes = problems.length;
 
@@ -139,10 +160,18 @@ export function AutoxRunDialog({onClose}: {onClose(): void}) {
   };
 
   /* a labelled point's name in the list, as the key names it: its mark, label and type, the parameter's value and its branch */
-  const view = activeView(state.diagram);
+  /* the branch's direction at a label: the sign of x at the next point of the same branch minus x here (the previous point's, when the label
+     ends its branch); nothing when the label has neither */
+  const directionAt = (point: number): string => {
+    const {x, br} = view.points, next = point + 1, prev = point - 1;
+    const other = next < br.length && br[next] === br[point] ? next : prev >= 0 && br[prev] === br[point] ? prev : -1;
+    if (other < 0) return '';
+    const dx = other === next ? x[next] - x[point] : x[point] - x[prev];
+    return dx === 0 || !Number.isFinite(dx) ? '' : ` (${view.axes?.xlabel ?? parameter} ${dx > 0 ? 'up' : 'down'})`;
+  };
   const labelName = (l: {lab: number; sym: string; point: number}): string => {
     const x = view.points.x[l.point], where = Number.isFinite(x) ? ` · ${view.axes?.xlabel ?? parameter} = ${Number(x.toPrecision(4))}` : '';
-    return `${pointMark(l.sym) || l.sym || 'point'} ${l.lab} · ${pointLabel(l.sym) || 'Point'}${where} · branch ${view.points.br[l.point]}`;
+    return `${pointMark(l.sym) || l.sym || 'point'} ${l.lab} · ${pointLabel(l.sym) || 'Point'}${where} · branch ${view.points.br[l.point]}${directionAt(l.point)}`;
   };
   const pick = (lab: number) => {
     setLabel(lab);
@@ -157,13 +186,17 @@ export function AutoxRunDialog({onClose}: {onClose(): void}) {
       <input type="radio" checked={checked} onChange={pickIt} />
       <span class="run-card-text"><strong>{title}</strong><span class="value-hint">{body}</span>{extra}</span>
     </label>;
+  /* a box before its words, the words the whole row; the hint under it */
+  const checkRow = (name: string, text: string, checked: boolean, change: (on: boolean) => void, hint?: string, title?: string) =>
+    <div class="run-check" data-argument={name}>
+      <label title={title}><input type="checkbox" aria-label={text} checked={checked} onChange={e => change(e.currentTarget.checked)} /><span>{text}</span></label>
+      {hint ? <p class="value-hint">{hint}</p> : null}
+    </div>;
   const numericField = (row: OptionRow): ComponentChildren => {
-    const bad = (() => { const t = inForce(row.key); return !row.boolean && numberOf(t) === null && t !== '' ? `${row.label} must be a number` : null; })();
-    if (row.boolean) return <FormRow key={row.key} name={row.key} label={row.label} help={row.help} inline>
-      <input type="checkbox" aria-label={row.label} checked={inForce(row.key) === 'true'} onChange={e => edit(row.key, String(e.currentTarget.checked))} />
-    </FormRow>;
-    return <FormRow key={row.key} name={row.key} label={row.label} help={row.help} error={bad}>
-      <input class="run-number" aria-label={row.label} value={inForce(row.key)} onInput={e => edit(row.key, e.currentTarget.value)} />
+    if (row.boolean) return <div key={row.key}>{checkRow(row.key, row.label, inForce(row.key) === 'true', on => edit(row.key, String(on)), undefined, row.help)}</div>;
+    const t = inForce(row.key), bad = numberOf(t) === null && t !== '' ? `${row.label} must be a number` : null;
+    return <FormRow key={row.key} name={row.key} label={row.label} error={bad} id={`run-${row.key}`}>
+      <input class="run-number" id={`run-${row.key}`} aria-label={row.label} title={row.help} value={t} onInput={e => edit(row.key, e.currentTarget.value)} />
     </FormRow>;
   };
   const kindCards = kinds.map(name => card(kindNow === name, () => setKind(name), name === 'two_parameter' && fromLabel && start ? CURVE_NAMES[start.type] ?? KIND_WORDS[name].label : KIND_WORDS[name]?.label ?? choiceLabel(name),
@@ -213,34 +246,28 @@ export function AutoxRunDialog({onClose}: {onClose(): void}) {
             </select>
           </FormRow>
           <FormRow name="direction" label="Direction">{seg('Direction', direction, v => setDirection(v as Direction), DIRECTIONS)}</FormRow>
-          <FormRow name={PARAMETER_MIN} label="Stop outside" help="The run stops when the parameter leaves this range">
-            <span class="range-pair">
-              <input aria-label="Lowest parameter" value={inForce(PARAMETER_MIN)} onInput={e => edit(PARAMETER_MIN, e.currentTarget.value)} />
+          <FormRow name={PARAMETER_MIN} label="Stop outside">
+            <span class="range-pair" title="The run stops when the parameter leaves this range">
+              <input class="run-number" aria-label="Lowest parameter" value={inForce(PARAMETER_MIN)} onInput={e => edit(PARAMETER_MIN, e.currentTarget.value)} />
               <span class="range-word">≤ {parameter} ≤</span>
-              <input aria-label="Highest parameter" value={inForce(PARAMETER_MAX)} onInput={e => edit(PARAMETER_MAX, e.currentTarget.value)} />
+              <input class="run-number" aria-label="Highest parameter" value={inForce(PARAMETER_MAX)} onInput={e => edit(PARAMETER_MAX, e.currentTarget.value)} />
             </span>
           </FormRow>
         </fieldset>
         <fieldset class="form-group run-step" data-run-step="branches">
           <legend>4 · Branches</legend>
-          <FormRow name={FOLLOW} label="Also follow the branches this run finds" inline>
-            <input type="checkbox" aria-label="Also follow the branches this run finds" checked={(inForce(FOLLOW) === 'true')}
-              onChange={e => edit(FOLLOW, String(e.currentTarget.checked))} />
-          </FormRow>
-          <p class="value-hint">A Hopf point starts its periodic orbits, and a branch point starts the other branch. Each becomes a branch of its own.</p>
-          <FormRow name="replace_diagram" label="Clear the diagram first" inline>
-            <input type="checkbox" aria-label="Clear the diagram first" checked={clear} onChange={e => setClear(e.currentTarget.checked)} />
-          </FormRow>
-          <p class="value-hint">Start a new diagram instead of adding to this one</p>
+          {checkRow(FOLLOW, 'Also follow the branches this run finds', inForce(FOLLOW) === 'true', on => edit(FOLLOW, String(on)),
+            'A Hopf point starts its periodic orbits, and a branch point starts the other branch. Each becomes a branch of its own.')}
+          {checkRow('replace_diagram', 'Clear the diagram first', clear, setClear, 'Start a new diagram instead of adding to this one')}
         </fieldset>
         <details class="run-numerics" open={numericsOpen} onToggle={e => setNumericsOpen(e.currentTarget.open)} data-run-numerics>
-          <summary>Numerics <span class="value-hint">{changed ? `${changed} changed` : 'values in force'}</span></summary>
-          {sections.map(section => <fieldset class="form-group" key={section}><legend>{section}</legend>
+          <summary>Numerics <span class="value-hint">{[summary, changed ? `${changed} changed` : summary ? '' : 'values in force'].filter(Boolean).join(' · ')}</span></summary>
+          <div class="run-sections">{sections.map(section => <fieldset class="form-group" key={section}><legend>{section}</legend>
             {numericRows.filter(row => row.section_label === section).map(numericField)}
-          </fieldset>)}
+          </fieldset>)}</div>
         </details>
       </div>
     </div>
-    {feedback.attempted && problems.map(problem => <p class="field-error" role="alert">{problem}</p>)}
+    {feedback.attempted && problems.map(problem => <p key={problem} class="field-error" role="alert">{problem}</p>)}
   </Dialog>;
 }

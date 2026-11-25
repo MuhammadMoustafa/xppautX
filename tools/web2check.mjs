@@ -2247,7 +2247,13 @@ async function autoxView(dir) {
   check('W855: the dialog opens with the values in force', await until(`s.commandForm?.id === 'autox.run' && document.querySelector('.run-form [data-argument="step.initial"] .run-number')?.value === String(s.autoxSettings.core.numerics["step.initial"])`, 'run dialog values'));
   check('W855: the kinds shown are the ones the start allows (the current state\'s when nothing is grabbed)',
     await cdp.eval(`(() => { const st = __xpp.state(); const want = st.diagram.start ? st.diagram.start.kinds : st.hello.autox_run.current;
-      return JSON.stringify([...document.querySelectorAll('.run-kinds [data-choice]')].map(b => b.dataset.choice)) === JSON.stringify(want); })()`));
+      return JSON.stringify([...document.querySelectorAll('.run-kinds [data-choice]')].map(b => b.dataset.choice).sort()) === JSON.stringify([...want].sort()); })()`));
+  /* W855 review: a Hopf label's first kind is its periodic orbits and the one picked; the list names the branch's direction */
+  check("W855: a Hopf point's first kind is Periodic orbits, and it is the one picked",
+    await cdp.eval(`(() => { const st = __xpp.state(); const first = document.querySelector('.run-kinds [data-choice]');
+      return st.diagram.start?.type === 'hopf' && first?.dataset.choice === 'periodic' && first.classList.contains('on') && first.querySelector('input').checked; })()`));
+  check("W855: the start list names the branch's direction at the label ('(<parameter> up)' or 'down')",
+    await cdp.eval(`/ \\([^ )]+ (up|down)\\)$/.test(document.querySelector('.run-form select[aria-label="Labelled point"] option:checked')?.textContent ?? '')`));
   /* the dialog's pictures for the UI review (XPP_SHOTS=folder): three widths, light and dark; never a check */
   if (process.env.XPP_SHOTS) {
     fs.mkdirSync(process.env.XPP_SHOTS, {recursive: true});
@@ -2262,6 +2268,15 @@ async function autoxView(dir) {
     }
     await desktopMetrics();
   }
+  /* W855 review: a homoclinic run's dimensions are whole numbers, 0 or more; a text that is not is a problem and nothing is sent */
+  await cdp.eval(`document.querySelectorAll('.run-form [data-run-step="start"] .run-card input')[1].click()`); // the current state's kinds hold homoclinic
+  await cdp.eval(`document.querySelector('.run-form .run-kinds [data-choice="homoclinic"]')?.click()`);
+  const beforeBad = await cdp.eval(`__xpp.sent().length`);
+  await cdp.eval(`(() => { const i = document.querySelector('.run-form [data-homoclinic] input[aria-label="Unstable dimension"]'); if (!i) return; i.value = '1.5'; i.dispatchEvent(new Event('input', {bubbles: true})); })()`);
+  await cdp.eval(`document.querySelector('.run-form [data-autox-run]')?.click()`);
+  check('W855: a homoclinic dimension that is not a whole number is refused with its problem, and nothing is sent',
+    await until(`(() => { const t = document.querySelector('.run-form')?.textContent ?? ''; return t.includes('Unstable dimension must be a whole number') && __xpp.sent().length === ${beforeBad}; })()`, 'dimension refused'));
+  await cdp.eval(`document.querySelectorAll('.run-form [data-run-step="start"] .run-card input')[0].click()`);
   await cdp.eval(`document.querySelector('.run-form .run-kinds [data-choice]')?.click()`);
   check('W855: the homoclinic fields show only for a homoclinic run', await cdp.eval(`!document.querySelector('.run-form [data-homoclinic]')`));
   await cdp.eval(`document.querySelector('.run-form [data-choice="decrease"]').click()`);

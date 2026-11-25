@@ -363,6 +363,15 @@
 .run-number { width: 100%; box-sizing: border-box; min-height: 2.375rem; padding: 0 0.625rem; border: 1px solid var(--field-border); border-radius: 0.5rem; background-color: var(--bg); color: var(--fg); font: inherit; font-variant-numeric: tabular-nums; }
 .run-homoclinic { display: grid; gap: var(--space-1); margin-top: var(--space-2); }
 .run-form .range-pair { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; }
-.run-numerics .form-row { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "label label" "control help"; }
-.run-numerics .form-row.inline { grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "label control help"; }
-.run-numerics .run-number { max-width: 10rem; }
+/* the numerics: compact label-left rows with small fields; the sections side by side where there is room, one column below */
+.run-sections { display: grid; gap: var(--space-2); }
+@media (min-width: 80rem) { .run-sections { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; } }
+.run-numerics .form-row { grid-template-columns: minmax(0, 1fr) 7rem; grid-template-areas: "label control"; align-items: center; }
+.run-numerics .help-slot { display: none; }
+.run-numerics .form-label, .run-numerics .run-check { font-size: var(--text-sm); }
+.run-numerics .run-number { min-height: 2rem; }
+.run-check { display: grid; gap: 0; padding: var(--space-1) 0; }
+.run-check > label { display: flex; align-items: center; gap: var(--space-2); }
+.run-check > .value-hint { margin: 0 0 0 1.5rem; }
+.run-form .range-pair .run-number { min-width: 0; }
+@media (min-width: 48rem) and (max-width: 79.99rem) { .run-kinds { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); } }
