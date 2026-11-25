@@ -13,6 +13,7 @@ import {activeView, type AutoxRunStart} from '../store/diagram';
 import {pointLabel, pointMark} from '../store/pointTypes';
 import {choiceLabel} from '../store/fieldKinds';
 import {NUM_FIRST_STEP, NUM_FOLLOW_ALL, NUM_MESH_INTERVALS, NUM_MESH_POINTS, NUM_OUTPUT_EVERY, NUM_PARAMETER_MAX, NUM_PARAMETER_MIN, NUM_STEP_MAX, NUM_STEP_MIN, NUM_STEPS} from '../store/steady';
+import {sixSig} from '../store/values';
 import {useSession, useStore} from './context';
 import {argumentNames} from './argumentFields';
 import {FormRow, useFeedback} from './FormFields';
@@ -171,7 +172,7 @@ export function AutoxRunDialog({onClose}: {onClose(): void}) {
     return dx === 0 || !Number.isFinite(dx) ? '' : `Along branch ${br[point]}, ${view.axes?.xlabel ?? parameter} ${dx > 0 ? 'rises' : 'falls'} from this point.`;
   };
   const labelName = (l: {lab: number; sym: string; point: number}): string => {
-    const x = view.points.x[l.point], where = Number.isFinite(x) ? ` · ${view.axes?.xlabel ?? parameter} = ${Number(x.toPrecision(4))}` : '';
+    const x = view.points.x[l.point], where = Number.isFinite(x) ? ` · ${view.axes?.xlabel ?? parameter} = ${sixSig(x)}` : '';
     return `${pointMark(l.sym) || l.sym || 'point'} ${l.lab} · ${pointLabel(l.sym) || 'Point'}${where} · branch ${view.points.br[l.point]}`;
   };
   const pick = (lab: number) => {
