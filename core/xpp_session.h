@@ -61,11 +61,13 @@ std::string xpp_session_save_download(xpp::Session &s);
    data (the rows stored and where the run ended). A view, a window or an
    autoX diagram alone is not a change. */
 bool xpp_session_changed(const xpp::Session &s);
-/* what the leave question asks about (File > Open, Reload, Quit): the session has no file yet, or it changed since (above: its values,
-   data and autoX diagram). A session saved or opened with nothing new since is not asked */
-bool xpp_session_has_unsaved(const xpp::Session &s);
-/* the session's values as they are now are the saved ones: a save, an
-   open of a session file and the end of every load call it */
+/* what the leave question asks about (File > Open, Reload, Quit): the session has no file yet, its values changed since (above), or
+   the session file it would write now differs from the one last saved, opened or loaded (the state text and the autoX orbits and
+   frozen curves, as the file holds them; W884). A session saved or opened with nothing new since is not asked. Takes the Session
+   for the state text's reads; it changes nothing */
+bool xpp_session_has_unsaved(xpp::Session &s);
+/* the session's values and its session file's members as they are now are the saved ones: a save, an
+   open of a session file and the end of every load call it (xpp_session_has_unsaved, W884) */
 void xpp_session_mark_clean(xpp::Session &s);
 /* the session file of s as it would be saved without the data table, as
    its bytes: a recording's snapshot (W59d, recx.h), made asking nothing;

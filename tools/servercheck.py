@@ -2950,6 +2950,14 @@ def check_saved_session_leave():
     asked, end = opened_asks(lambda snd, col: None)
     check('W880: a session never saved is asked about when a model opens, as before', asked and end.get('status') == 'ok', str((asked, end)))
 
+    def saved_then_label(snd, col):
+        saved(snd, col)
+        finished(snd, col, 'plot.set_2d', x_label='W884 label')
+
+    asked, end = opened_asks(saved_then_label)
+    check('W884: a change the session file holds but the values do not (a graph\'s axis label) is asked about after the save',
+          asked and end.get('status') == 'ok', str((asked, end)))
+
 
 def check_equilibrium_exports():
     """W522: explicit side filenames and one error value, including a refused derived destination."""
