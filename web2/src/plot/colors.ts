@@ -8,17 +8,25 @@ import {cssVar, darkTheme} from './css';
 
 export type {CoreColor};
 
+/** each color lightened for a background, by the color and the background: cssColor runs per curve per frame */
+const lightened = new Map<string, string>();
+
 /** WCAG 2.2's contrast for a graphic (1.4.11, 3:1): a curve on the dark theme's background is lightened until it reaches this */
 export const GRAPHIC_CONTRAST = 3;
 /** how far one step raises a too-dark color's HSL lightness (0 to 1): small, so the lightening stops just past GRAPHIC_CONTRAST */
 const LIGHTEN_STEP = 0.01;
 
 /** the color the canvas or CSS draws `c` in: `foreground` is the theme's --fg (tokens.css), read from the page;
-    on the dark theme a color that does not reach GRAPHIC_CONTRAST against --bg is lightened (lightenForBackground) */
+    on the dark theme a color that does not reach GRAPHIC_CONTRAST against --surface, the plots' background, is lightened
+    (lightenForBackground) */
 export function cssColor(c: CoreColor): string {
   if (c === 'foreground') return cssVar('--fg');
-  const bg = darkTheme() ? cssToHex(cssVar('--bg')) : null;
-  return bg ? lightenForBackground(c, bg) : c;
+  const bg = darkTheme() ? cssToHex(cssVar('--surface')) : null;
+  if (!bg) return c;
+  const key = c + bg;
+  let out = lightened.get(key);
+  if (out === undefined) lightened.set(key, out = lightenForBackground(c, bg));
+  return out;
 }
 
 const CORE_HEX = /^#([0-9a-f]{6})([0-9a-f]{2})?$/i;

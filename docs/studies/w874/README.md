@@ -7,8 +7,8 @@ then the periodic branch from the Hopf point, so the diagram holds unstable peri
 
 - `autox-periodic-<width>-light.jpg`: the light theme, unchanged: the unstable periodic branch (branch 2's swatch
   and the blue dashed-then-solid curves at about iapp 0.25 and 0.47) is the core's pure blue `#0000ff`.
-- `autox-periodic-<width>-dark.jpg`: the dark theme: the same curves drawn lighter blue (`#4242ff`, the hue and
-  saturation kept, the lightness raised to a contrast of 3:1 against the page's `--bg`, #121212). Pure blue reads as blue.
+- `autox-periodic-<width>-dark.jpg`: the dark theme: the same curves drawn lighter blue (`#4d4dff`, the hue and
+  saturation kept, the lightness raised to a contrast of 3:1 against the plots' `--surface`, #1b1b1b). Pure blue reads as blue.
 
 Decision (card W874, maintainer 2026-11-25): the core's colors stay as they are; the page lightens a color that is
 too dark to read on the dark theme (web2/src/plot/colors.ts `cssColor`). The light theme is unchanged.

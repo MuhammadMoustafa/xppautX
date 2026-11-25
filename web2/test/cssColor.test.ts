@@ -25,7 +25,7 @@ test('cssToHex never answers black for what it cannot read', () => {
   assert.equal(cssToHex('looping', c => c), null);
 });
 
-const DARK_BG = '#121212';
+const DARK_BG = '#1b1b1b'; /* the dark theme's --surface, the plots' background (tokens.css) */
 const hsl = (hex: string) => {
   const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255);
   const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2;

@@ -2571,9 +2571,9 @@ async function autoxDarkColors() {
   const draws = await cdp.eval('__xpp.diagram().draws');
   const dark = await setPageTheme('dark');
   await until(`__xpp.diagram().draws > ${draws}`, 'the dark theme redraws the diagram', 20000 * SLOW);
-  const darkRead = await cdp.eval(`(() => { const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+  const darkRead = await cdp.eval(`(() => { const bg = getComputedStyle(document.documentElement).getPropertyValue('--surface').trim();
     return ${unstable}.map(c => [c.color, __xpp.contrast(c.color, bg)]); })()`);
-  check('W874: on the dark theme every unstable periodic curve reads: 3:1 or more against --bg, lightened from #0000ff',
+  check('W874: on the dark theme every unstable periodic curve reads: 3:1 or more against --surface, lightened from #0000ff',
     dark && darkRead.length > 0 && darkRead.every(([c, r]) => r >= 3 && c !== '#0000ff' && /^#[0-9a-f]{6}$/i.test(c)), JSON.stringify({dark, darkRead}));
   await setPageTheme('light');
 }
