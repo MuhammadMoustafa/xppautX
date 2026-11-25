@@ -357,8 +357,10 @@ Result<Arguments> validate(Session *session, const Command &command, const char 
         const Argument *file = picker_argument(command);
         if (!args.has(file->name)) args.add(file->name, Scalar{std::string(PICKER_FILE)});
     }
+    /* a choice the file's extension settles (command_registry.cpp's run) is not missing while the file is given or asked for */
+    const Argument *file = picker_argument(command);
     for (const Argument &arg : command.arguments)
-        if (arg.required && !args.has(arg.name))
+        if (arg.required && !args.has(arg.name) && !(arg.from_extension && file && args.has(file->name)))
             return fail(command.name, xpp::format("Missing argument \"{}\"", arg.name), place);
     if (const Result<> grouped = check_groups(c, args); !grouped) return std::unexpected<Error>(grouped.error());
     return args;

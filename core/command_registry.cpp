@@ -123,6 +123,7 @@ void append_argument(std::string &out, const Argument &arg)
         out += ",\"description\":";
         json_append_string(out, arg.description);
     }
+    if (arg.from_extension) out += ",\"from_extension\":true";
     if (*arg.option) {
         out += ",\"option\":";
         json_append_string(out, arg.option);
@@ -462,6 +463,32 @@ Result<> check_shape(const char *line, const Place &place, Session *session)
     return {};
 }
 
+/* the choices of `command` left out that its file's extension settles (Argument::from_extension), added to `args`: the file is known now
+   (given, or picked). One choice's extension names exactly one value; none or several is an error listing them */
+namespace {
+Result<> settle_from_extension(const Command &command, Arguments &args, const Place &place)
+{
+    const Argument *file_arg = picker_argument(command);
+    if (!file_arg || !args.has(file_arg->name)) return {};
+    const std::string file = args.get<std::string>(file_arg->name);
+    for (const Argument &arg : command.arguments) {
+        if (!arg.from_extension || args.has(arg.name)) continue;
+        std::vector<std::string_view> named;
+        std::string listing;
+        for (std::size_t i = 0; i < arg.choices.size(); ++i) {
+            const std::string extension = arg.extensions.empty() ? xpp::format(".{}", arg.choices[i]) : std::string(arg.extensions[i]);
+            if (files::has_extension(file, extension)) named.push_back(arg.choices[i]);
+            listing += xpp::format("{}{} for {}", listing.empty() ? "" : ", ", extension, arg.choices[i]);
+        }
+        if (named.size() != 1)
+            return fail(command.name, xpp::format("{}: its extension does not name one {} ({}): end the file's name with one of them or give {}",
+                                                   file, arg.name, listing, arg.name), place);
+        args.add(arg.name, Scalar{std::string(named[0])});
+    }
+    return {};
+}
+} // namespace
+
 Result<std::string> run(Session &s, const char *line, const Place &place, bool paths_allowed)
 {
     if (std::strlen(line) > MAX_COMMAND_BYTES)
@@ -483,6 +510,7 @@ Result<std::string> run(Session &s, const char *line, const Place &place, bool p
         if (!file_selector(full_name(*command), file, command->file_wild, command->file_mode)) return std::string("{\"cancelled\":true}");
         args->add(file_arg->name, Scalar{std::move(file)});
     }
+    if (const Result<> settled = settle_from_extension(*command, *args, place); !settled) return std::unexpected<Error>(settled.error());
     /* a computation reads the model's compiled code, made on its first one (W713) */
     if (command->kind == XPP_KIND_COMPUTE) ensure_compiled(s);
     Result<std::string> result = command->execute(s, *command, *args, place);

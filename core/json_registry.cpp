@@ -42,7 +42,7 @@ xpp::Result<std::string> front_end_command(xpp::Session &s, const xpp::command::
     if (name == "recording.start") return recording_start(s);
     if (name == "recording.stop") return recording_stop(s, args.optional<std::string>("file"));
     if (name == "recording.add_note") return recording_add_note(args.get<std::string>("note"));
-    if (name == "recording.open") return recording_open(s, args.get<std::string>("file"), args.get<bool>("play"));
+    if (name == "recording.open") return recording_open(s, args.get<std::string>("file"), args.optional<bool>("play").value_or(false));
     if (name == "recording.play") return recording_control("play", std::nullopt);
     if (name == "recording.pause") return recording_control("pause", std::nullopt);
     if (name == "recording.step") return recording_control("step", std::nullopt);

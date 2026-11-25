@@ -20,7 +20,7 @@ constexpr Argument NOTE = {"note", Type::text, true, MAX_NOTE_BYTES, {}, {}, {},
 
 constexpr std::array STOP_ARGUMENTS = {FILE_OPTIONAL};
 constexpr std::array NOTE_ARGUMENTS = {NOTE};
-constexpr std::array OPEN_ARGUMENTS = {Argument{"file", Type::path, true}, Argument{"play", Type::boolean, true}};
+constexpr std::array OPEN_ARGUMENTS = {Argument{"file", Type::path, true}, Argument{"play", Type::boolean, false}};
 constexpr std::array SPEED_ARGUMENTS = {Argument{"speed", Type::real, true, MAX_TEXT_BYTES, {}, constant(recx::player_speed_min), constant(recx::player_speed_max)}};
 constexpr std::array SEEK_ARGUMENTS = {STEP, Argument{"play", Type::boolean, false}};
 constexpr std::array STEP_NOTE_ARGUMENTS = {STEP, NOTE};
@@ -46,7 +46,7 @@ constexpr std::array ROWS = {
             "Stop recording and save the recording (.recx added); left out, the file is asked for.",
             STOP_RESULTS, STATE_EVENTS, false, front_end, {}, {}, "write", "*.recx"},
     Command{"recording.open", OPEN_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Panels, "Open", "File/Recording",
-            "Open a recording (.recx) in the player: its model is loaded and its steps are ready; play says whether it starts playing at once.", OPEN_RESULTS, PLAYER_EVENTS, false,
+            "Open a recording (.recx) in the player: its model is loaded and its steps are ready; play says whether it starts playing at once (left out: it does not).", OPEN_RESULTS, PLAYER_EVENTS, false,
             front_end, {}, {}, "read", "*.recx"},
     Command{"recording.play", {}, XPP_KIND_CONTROL, CommandCategory::Panels, "Play", "", "Play the open recording from where it is.", PLAY_RESULTS,
             DONE_EVENTS, false, front_end},

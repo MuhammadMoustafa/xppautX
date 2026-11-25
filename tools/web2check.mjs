@@ -3220,15 +3220,13 @@ async function playerCheck(dir) {
   await until(`!s.core.recording && !s.busy`, 'stopped');
   check('player: the File menu offers Open recording', await cdp.eval(`!!document.querySelector('.app-menu [data-command="recording.open"]')`));
   await clickRegistry('recording.open');
-  check('player: Open recording opens its form, the .recx named in its file field', await until(`s.commandForm?.id === 'recording.open'`, 'play form'),
-    JSON.stringify(await S('s.commandForm')));
-  /* the form's file is picked (its action, with the file left empty, asks the picker's name, as the title bar's Play did) */
-  await formValues({play: true});
-  await cdp.eval(`document.querySelector('[data-dialog-action]').click()`);
-  await until(`s.ask && s.ask.kind === 'file' && s.ask.wild === '*.recx'`, 'recx ask');
+  check('W873: Open recording goes to the picker at once, no form (play left out: it opens paused)',
+    await until(`!s.commandForm && s.ask?.kind === 'file' && s.ask.wild === '*.recx'`, 'recx ask'), JSON.stringify(await S('s.commandForm')));
   await answerAsk({file: 'play.recx'});
   await until(`s.ask && s.ask.kind === 'choice'`, 'save first?');
   await cdp.eval(`__xpp.send({cmd: 'answer', id: __xpp.state().ask.id, key: 'd'})`);
+  await until(`s.player.open && !s.busy`, 'opened');
+  await cdp.eval(`__xpp.send({cmd: 'recording.play'})`);
   check('player: the recording opens: its steps with their notes, playing automatically, intact',
     await until(`s.player.open && s.player.steps.length === 2 && s.core.player && (s.core.player.playing || s.core.player.step > 0)`, 'player', 20000)
     && await S(`s.player.steps[0].note === 'The cell fires once.' && s.player.intact`), JSON.stringify(await S('s.player.steps')));
@@ -5031,7 +5029,7 @@ async function dialogsCheck() {
     outputFiles.count >= 3 && outputFiles.same && !outputFiles.looseButtons.some(b => /Choose|Browse/.test(b)) && outputFiles.inBox === 0, JSON.stringify(outputFiles));
   await key('Escape');
   await until('!s.optionsPanel', 'output closed');
-  await clickRegistry('data.load');
+  await clickRegistry('fit.parameters');
   await requireUntil(`!!s.commandForm`, 'the export form for its file control');
   const exportFile = await cdp.eval(`(() => { const row = document.querySelector('[data-dialog] [data-argument=file]'); return {box: row.querySelectorAll('.file-box').length, loose: [...row.querySelectorAll('button')].filter(b => !b.closest('.file-box')).length}; })()`);
   check('W641: the Export form\'s File is the same file control as Output\'s, with no button beside it', exportFile.box === 1 && exportFile.loose === 0, JSON.stringify(exportFile));
@@ -5056,7 +5054,7 @@ async function dialogsCheck() {
   await key('Escape');
   await until('!s.commandForm', 'Settings closed');
   /* a file: one control, which also takes a dropped file; the footer's action is the only one */
-  await clickRegistry('data.load');
+  await clickRegistry('fit.parameters');
   await requireUntil(`!!s.commandForm`, 'the export form');
   const exportForm = await cdp.eval(`(() => {
     const d = document.querySelector('[data-dialog]');
@@ -5071,14 +5069,16 @@ async function dialogsCheck() {
     exportForm.labelX.length >= 2 && new Set(exportForm.labelX).size === 1, JSON.stringify(exportForm.labelX));
   check('W641: Export\'s File is not marked required, and no form has a separate file button',
     await cdp.eval(`(() => { const row = document.querySelector('[data-dialog] [data-argument=file]'); return !row.querySelector('.required') && !document.querySelector('[data-dialog] .file-pick'); })()`));
-  const sentExport = await S('__xpp.sentCount()');
-  await cdp.eval(`document.querySelector('[data-dialog-action]').click()`);
-  check('W641: Load data with File empty sends data.load with file_picker (the core\'s file ask chooses the place; W771: Export is a submenu of items with no form)',
-    await until(`s.ask?.kind === 'file'`, 'the file ask')
-    && await S(`__xpp.sentFrom(${sentExport}).some(c => c.cmd === 'data.load' && c.file_picker === true && !('file' in c))`));
+  /* W873: Load data's own file goes straight to the picker (no form, so no Choose file button to look at); Fit data keeps its form with its file */
+  await key('Escape');
+  await until('!s.commandForm', 'the form closed');
+  const sentLoad = await S('__xpp.sentCount()');
+  await clickRegistry('data.load');
+  check('W873: Load data sends data.load with file_picker at once, no form (the core\'s file ask chooses the place)',
+    await until(`s.ask?.kind === 'file' && !s.commandForm`, 'the file ask') && await S(`__xpp.sentFrom(${sentLoad}).some(c => c.cmd === 'data.load' && c.file_picker === true && !('file' in c))`));
   await cdp.eval(`document.querySelector('[data-dialog] .dialog-close').click()`);
   await until('!s.ask && !s.busy', 'export ask cancelled');
-  await clickRegistry('data.load');
+  await clickRegistry('fit.parameters');
   await requireUntil(`!!s.commandForm`, 'the export form again');
   await key('Escape');
   await until('!s.commandForm', 'export form closed');
@@ -5207,12 +5207,12 @@ async function panelMenusInsideCheck() {
   await desktopMetrics();
 }
 
-/* a registry row whose form would ask only its file: the page's rule (web2/src/ui/navigation.ts fileOnly), restated as the check's oracle */
+/* a registry row that goes to the picker with no form (W873: web2/src/ui/navigation.ts fileOnly), restated as the check's oracle: every other
+   argument is optional or a choice the file's extension settles, and it is no computation and has no panel */
 function fileOnlyRow(row) {
   const args = row.arguments ?? [], file = args.find(a => a.type === 'file' || a.type === 'path');
-  if (!file || row.panel) return false;
-  const others = args.filter(a => a !== file).map(a => a.name);
-  return others.length === 0 || (row.groups ?? []).some(g => g.rule === 'at_most_one' && g.arguments.includes(file.name) && others.every(n => g.arguments.includes(n)));
+  if (!file || row.panel || row.kind === 'x') return false;
+  return args.every(a => a === file || !a.required || a.from_extension);
 }
 
 async function navigationCheck() {
@@ -5251,6 +5251,14 @@ async function navigationCheck() {
   for (const row of rows.filter(c => c.arguments.length && c.cmd !== 'annotation.list' && c.cmd !== 'settings.configure' && !c.menu_choice)) { /* W792: the Settings window is its form */
     const sentMark = await cdp.eval('__xpp.sentCount()');
     await clickRegistry(row.cmd);
+    if (row.cmd === 'set.load_file') {
+      /* W873: File > Sets > Load a named part of a file picks the file first; the picked file's parts are then listed to choose from */
+      check('W873: set.load_file asks the picker at once (set.list_file_contents), no form',
+        await until(`!s.commandForm && __xpp.sentFrom(${sentMark}).some(c => c.cmd === 'set.list_file_contents' && c.scope === 'all' && c.file_picker === true)`, 'sent the listing'));
+      await key('Escape');
+      await until("!s.busy && !(s.ask && s.ask.kind === 'file')", 'the picker closed');
+      continue;
+    }
     if (fileOnlyRow(row)) {
       /* W853: a command whose form would ask only its file goes to the picker with no form (navigation.ts fileOnly); one that needs a
          state first (Stop recording, a direction field's export) is refused by the core, which this section expects */
@@ -5283,6 +5291,14 @@ async function navigationCheck() {
     check(`W517: ${row.cmd} form is its registry arguments (a group's together)`, JSON.stringify([...fields].sort()) === JSON.stringify(row.arguments.filter(a => a.type !== 'path' && a !== dialogOnly).map(a => a.name).sort()), JSON.stringify(fields));
     await key('Escape');
   }
+  /* W873 (#955): the commands that open, save or load a file go to the picker with nothing asked first; the five that are not file commands keep their form */
+  const byName = Object.fromEntries(everyRow.map(r => [r.cmd, r]));
+  for (const cmd of ['session.save_as', 'session.save_copy', 'recording.open', 'equilibrium.export', 'nullcline.export', 'plot.load_bifurcation', 'data.load', 'value.import_file', 'autox.import_diagram'])
+    check(`W873: ${cmd} goes to the picker at once`, !!byName[cmd] && fileOnlyRow(byName[cmd]), JSON.stringify(byName[cmd]?.arguments));
+  for (const cmd of ['plot.export', 'autox.export', 'array_plot.export', 'animation.export'])
+    check(`W873: ${cmd}'s format is the extension's`, !!byName[cmd] && fileOnlyRow(byName[cmd]), JSON.stringify(byName[cmd]?.arguments));
+  for (const cmd of ['fit.parameters', 'table.edit', 'data.tabulate_column', 'array_plot.range', 'output.configure'])
+    check(`W873: ${cmd} keeps its form`, !!byName[cmd] && !fileOnlyRow(byName[cmd]));
   await clickRegistry('command_palette.open');
   check('W642: the menu bar entry, the dialog and its Help item say Search commands',
     await cdp.eval(`document.querySelector('.menu-search').textContent.trim() === 'Search commands' && document.querySelector('.command-palette h2').textContent.trim() === 'Search commands' && document.querySelector('.command-palette [data-command="command_palette.open"]').textContent.includes('Search commands')`));
@@ -5297,9 +5313,11 @@ async function navigationCheck() {
   await cdp.eval(`(() => {const q = document.querySelector('#command-search'); q.value = 'session save'; q.dispatchEvent(new Event('input',{bubbles:true}));})()`);
   await rendered();
   check('W517: palette matches the registry name and menu path', await cdp.eval(`!!document.querySelector('.command-palette [data-command="session.save"]') && !document.querySelector('.command-palette [data-command="run.initial"]')`));
+  const paletteMark = await cdp.eval('__xpp.sentCount()');
   await cdp.eval(`document.querySelector('.command-palette [data-command="session.save_as"]').click()`);
-  check('W517: palette opens the same form', await until(`s.commandForm?.id === 'session.save_as' && !s.drawerOpen`, 'palette form'));
-  await key('Escape');
+  check('W873: the palette runs Save session as at once: the command with its file asked for, no form',
+    await until(`!s.commandForm && !s.drawerOpen && __xpp.sentFrom(${paletteMark}).some(c => c.cmd === 'session.save_as' && c.file_picker === true)`, 'palette save'));
+  await until("!s.busy && !(s.ask && s.ask.kind === 'file')", 'the browser save answered');
   /* W767: File > Export > Model as and Data as are submenus, an item per value; a click sends the command with that value, opens no form
      and goes to the file question (the picker: the page's ask) */
   /* a run to save and autoX open, so each item reaches its file question (without them the command refuses first) */
@@ -9081,7 +9099,7 @@ async function main() {
     if (run('autox')) await session(AB_ODE, autoxLiveJobs);
     if (run('autoxviews')) await session(ODE, autoxViews);
     /* W786: an export item's file question is answered at once, so the command runs: the exports with nothing to write here say so */
-    if (run('navigation')) await session(ODE, navigationCheck, [/is not a graph/, /The array plot shows no columns yet/, /The client gave no picture of frame/, /Not recording/, /No direction field is shown/]);
+    if (run('navigation')) await session(ODE, navigationCheck, [/is not a graph/, /The array plot shows no columns yet/, /The client gave no picture of frame/, /Not recording/, /No direction field is shown/, /No nullclines have been computed/]);
     if (run('navigation')) await session(ODE, menusByTaskCheck);
     if (run('navigation')) await session(ODE, panelMenusInsideCheck);
     if (run('navigation')) await session(ODE, () => featuresCheck(['parameters'], ['boundary_conditions', 'formula_tables', 'delays', 'integral_terms']));

@@ -25,7 +25,7 @@ by their exact names, model names come from the model, colors use the color
 field, and lists and maps have editable rows. **Set** includes an optional
 argument; leaving it out keeps the command's documented current value.
 Available session values are filled in. File fields offer **Choose file and run…**, which opens the authorized desktop or browser picker and then runs the command; Cancel makes no change. Open
-model's **Choose file…** uses the desktop or browser's own file dialog.
+model's **Choose file…** uses the desktop or browser's own file dialog. A command whose only other arguments are optional, a choice its menu item gives or one the file's extension settles opens that dialog at once, with no form (Save session as, Import values file, Open a recording); a command that takes more than its file as real input (Fit data, Edit table, Tabulate column, Array plot range, Output) keeps its form.
 
 A command checks all its values before applying them. A refusal leaves the
 options, values, windows and files unchanged. While recording, a command

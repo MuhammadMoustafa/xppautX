@@ -22,15 +22,16 @@ export function featureLack(hello: HelloEvent | null, feature: string | undefine
   const found = feature ? hello?.model_features.find(f => f.name === feature) : undefined;
   return found && !found.present ? found.needs : null;
 }
-/** whether a row's form would ask nothing but its file: the file is its only argument, or the file is one of the alternatives of its
-    at-most-one group and the rest of the arguments are the others (File > Open model's example and recent). Such a command goes to
-    the file picker at once, as the start screen's Open model does; the core asks for the file when none is given. */
-export function fileOnly(row: CommandRow): boolean {
+/** whether a row goes to the file picker at once, with no form in front (maintainer, 2026-11-25: every open, save and load): each argument
+    besides the file is settled without asking, by what the call gives (`given`: a menu item's choice, a fixed argument), by being
+    optional (the value in force: the active window, an option, the core's default), or by the file's extension (`from_extension`, the
+    core takes it from the name picked); the core asks the file when none is given. A computation that reads a file as one of its inputs
+    (a range run, a fit) and a row with a panel of its own keep their form. */
+export function fileOnly(row: CommandRow, given: Record<string, unknown> = {}): boolean {
   const args = row.arguments ?? [];
   const file = args.find(a => a.type === 'file' || a.type === 'path');
-  if (!file || row.panel) return false;
-  const others = args.filter(a => a !== file).map(a => a.name);
-  return others.length === 0 || (row.groups ?? []).some(g => g.rule === 'at_most_one' && g.arguments.includes(file.name) && others.every(n => g.arguments.includes(n)));
+  if (!file || row.panel || row.kind === 'x') return false;
+  return args.every(a => a === file || !a.required || a.from_extension || a.name in given);
 }
 /** the registry row of command `id`: its label, description and menu place are what every control for it shows */
 export function commandRow(hello: HelloEvent | null, id: string): CommandRow | undefined {

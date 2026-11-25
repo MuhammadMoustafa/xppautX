@@ -410,8 +410,14 @@ Files (PDF/SVG, GIF, `.dat`, tables, kinescope frames) are
 written next to the ODE file, by the program, exactly as XPPAUT does. The
 browser never silently downloads anything on its own.
 
-- **Open** (Import XPPAUT session state, Load diagram, the browser's Load, ...): the page
-  shows a prompt whose "Choose file…" opens the browser's own file picker, showing
+- **Open** (Import XPPAUT session state, Load diagram, the browser's Load, ...): a command of the
+  File menu (or a key, a pin or Search commands) that opens, saves or loads a file opens the file picker at once, with no form in
+  front: what else it needs comes from the file you pick (the Graph, Diagram and Array plot exports take pdf, svg or gif from the
+  extension of the name; Import values file takes parameters from `.par` and initial conditions from `.ic`; an animation's export takes
+  a GIF from `.gif` and its frames from `.ppm`; a name whose extension names none or two of them is refused, listing them), from the
+  active window, from the value in force (Save session as keeps the data table unless Settings says otherwise) or from the menu item
+  you clicked (File > Export > Graph as > PDF). Load a named part of a file picks the file first and then lists its sets. In a browser
+  the picker opens from your click itself; where it cannot, the page shows a prompt whose "Choose file…" opens the browser's own file picker, showing
   the files of the kind the command reads (`*.set`, ...); picked files are uploaded into
   xppautX's working directory (the model's folder) so relative names in
   `#include`, tables and diagrams keep resolving as they always have.

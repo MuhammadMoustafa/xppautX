@@ -13,6 +13,8 @@ export interface RegistryArgument {
   min?: number; max?: number; multiline?: boolean;
   /** the key of the option row (in the command's panel group) that sets it: its panel shows it, the form leaves it out */
   option?: string;
+  /** a choice the file's extension settles when it is left out (core Argument::from_extension): the page need not ask it before the picker */
+  from_extension?: boolean;
   /** what the argument is, under its field in a form (the row's argument description) */
   description?: string;
 }

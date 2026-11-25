@@ -102,7 +102,19 @@ struct Argument {
     const char *option = "";
     /* what the argument is, in one line: the help under its field in a form; "" for none */
     const char *description = "";
+    /* a choice the file's extension settles (W873): left out, it is the choice whose name, with a dot before it, ends the file's name (".pdf" for
+       pdf); `extensions` lists the extension of each choice, in the order of `choices`, where the names are not the extensions (".par" for
+       parameters). An extension that names no choice or two is an error that lists them. Needs the command's one file argument. */
+    bool from_extension = false;
+    std::span<const char *const> extensions = {};
 };
+/* the choice argument `arg` taken from the file's extension when left out */
+constexpr Argument by_extension(Argument arg, std::span<const char *const> extensions = {})
+{
+    arg.from_extension = true;
+    arg.extensions = extensions;
+    return arg;
+}
 /* the argument set by the option row with `key` */
 constexpr Argument set_by(Argument arg, const char *key)
 {

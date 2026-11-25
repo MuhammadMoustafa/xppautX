@@ -369,7 +369,7 @@ constexpr std::array LEGEND_GROUPS = {Group{GroupRule::together, LEGEND_POSITION
 constexpr std::array IMPORT_ARGUMENTS = {WINDOW, FILE};
 constexpr std::array ENABLED_ARGUMENTS = {ENABLED};
 constexpr auto PICTURE_FORMAT_CHOICES = c_names(picture_format_names);
-constexpr std::array PICTURE_ARGUMENTS = {WINDOW, Argument{"format", Type::choice, true, MAX_TEXT_BYTES, PICTURE_FORMAT_CHOICES}, FILE};
+constexpr std::array PICTURE_ARGUMENTS = {WINDOW, by_extension(Argument{"format", Type::choice, true, MAX_TEXT_BYTES, PICTURE_FORMAT_CHOICES}), FILE};
 constexpr std::array ORIGIN_ARGUMENTS = {WINDOW, Argument{"x_origin", Type::real, false}, Argument{"y_origin", Type::real, false},
                                          Argument{"z_origin", Type::real, false}, Argument{"x_origin_shown", Type::boolean, false},
                                          Argument{"y_origin_shown", Type::boolean, false}, Argument{"z_origin_shown", Type::boolean, false}};

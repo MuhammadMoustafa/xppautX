@@ -161,7 +161,9 @@ constexpr std::array FILE_ARGUMENT = {Argument{"file", Type::file, true}};
 constexpr long long MAX_FRAME_SKIP = 100000000;
 constexpr std::array SKIP_ARGUMENTS = {Argument{"skip", Type::integer, true, MAX_TEXT_BYTES, {}, constant(1), constant(MAX_FRAME_SKIP)}};
 constexpr auto OUTPUT_CHOICES = c_names(movie_output_names);
-constexpr std::array EXPORT_ARGUMENTS = {Argument{"output", Type::choice, true, MAX_TEXT_BYTES, OUTPUT_CHOICES}, Argument{"file", Type::file, true}};
+/* the extension of each output, in the order of movie_output_names: a GIF, or PPM frames */
+constexpr std::array OUTPUT_EXTENSIONS = {xpp::GIF_EXTENSION.data(), xpp::PPM_EXTENSION.data()};
+constexpr std::array EXPORT_ARGUMENTS = {by_extension(Argument{"output", Type::choice, true, MAX_TEXT_BYTES, OUTPUT_CHOICES}, OUTPUT_EXTENSIONS), Argument{"file", Type::file, true}};
 constexpr std::array LIVE_ARGUMENTS = {Argument{"enabled", Type::boolean, true}};
 constexpr std::array GRAB_ARGUMENTS = {Argument{"x", Type::real, false}, Argument{"y", Type::real, false}, Argument{"to_x", Type::real, false}, Argument{"to_y", Type::real, false}};
 constexpr std::array GRAB_TOGETHER = {"to_x", "to_y"};

@@ -115,16 +115,24 @@ test('W778: the array plot\'s and the kinescope\'s exports are one menu_choice r
   assert.deepEqual(rowChoiceItems(hello, undefined), []);
 });
 
-test('W853: a command whose form would ask only its file (File > Open model with its alternatives, a file-only export) goes to the picker at once; one with another argument of its own keeps its form', () => {
-  const arg = (name: string, type: string, required = false) => ({name, type, required, choices: []});
+test('W873: a command whose other arguments are settled without asking goes to the picker at once; a required one nothing settles keeps its form', () => {
+  const arg = (name: string, type: string, required = false, extra = {}) => ({name, type, required, choices: [], ...extra});
   const open = {arguments: [arg('file', 'path'), arg('example', 'text'), arg('recent', 'integer')], groups: [{rule: 'at_most_one', arguments: ['file', 'example', 'recent']}]};
   const fileOnlyRow = {arguments: [arg('file', 'file', true)]};
-  const withFormat = {arguments: [arg('format', 'choice', true), arg('file', 'file')]};
+  const saveAs = {arguments: [arg('file', 'file', true), arg('data', 'boolean')], kind: 'd'};
+  const exported = {arguments: [arg('format', 'choice', true, {from_extension: true}), arg('file', 'file', true)], kind: 'd'};
+  const needsFormat = {arguments: [arg('language', 'choice', true), arg('file', 'file')], kind: 'd'};
+  const range = {arguments: [arg('still', 'boolean'), arg('file', 'file', true)], kind: 'x'};
   const panelled = {arguments: [arg('file', 'file', true)], panel: 'plot'};
   const none = {arguments: []};
-  assert.equal(fileOnly(open as unknown as CommandRow), true);
-  assert.equal(fileOnly(fileOnlyRow as unknown as CommandRow), true);
-  assert.equal(fileOnly(withFormat as unknown as CommandRow), false, 'a format is a second argument of its own');
-  assert.equal(fileOnly(panelled as unknown as CommandRow), false, 'a panel is a form of its own');
-  assert.equal(fileOnly(none as unknown as CommandRow), false, 'no file argument');
+  const is = (row: object, given = {}) => fileOnly(row as unknown as CommandRow, given);
+  assert.equal(is(open), true);
+  assert.equal(is(fileOnlyRow), true);
+  assert.equal(is(saveAs), true, 'an optional argument is the value in force');
+  assert.equal(is(exported), true, 'a choice the extension settles');
+  assert.equal(is(needsFormat), false, 'a required choice nothing settles');
+  assert.equal(is(needsFormat, {language: 'python'}), true, 'a menu item gives it');
+  assert.equal(is(range), false, 'a computation keeps its form');
+  assert.equal(is(panelled), false, 'a panel is a form of its own');
+  assert.equal(is(none), false, 'no file argument');
 });

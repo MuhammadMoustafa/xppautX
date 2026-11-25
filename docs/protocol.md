@@ -229,7 +229,7 @@ if the output could not be written.
 | `run.from_every_point` | `x`: required list [of real, at most 256], `y`: required list [of real, at most 256], `window`: optional window (max 1024 bytes) | `x` / run | Run/Initial conditions/Run from every point | `trajectories_run`: `integer` | `job.computing`, `job.progress`, `plot.series`, `job.stopped`, `session.state`, `done` | Run from each point of a graph in turn, x and y the coordinates of the two states it plots; the runs add up on the graph. |
 | `recording.start` | none | `d` / panels | File/Recording/Start | `recording`: `boolean` | `session.state`, `done` | Start recording the session's steps, from the session as it is now. |
 | `recording.stop` | `file`: optional file (max 1024 bytes) | `d` / panels | File/Recording/Stop | `file`: `file`, `steps_recorded`: `integer` | `session.state`, `done` | Stop recording and save the recording (.recx added); left out, the file is asked for. |
-| `recording.open` | `file`: required path (max 1024 bytes), `play`: required boolean | `d` / panels | File/Recording/Open | `file`: `file`, `total_steps`: `integer` | `recording.player`, `session.state`, `done` | Open a recording (.recx) in the player: its model is loaded and its steps are ready; play says whether it starts playing at once. |
+| `recording.open` | `file`: required path (max 1024 bytes), `play`: optional boolean | `d` / panels | File/Recording/Open | `file`: `file`, `total_steps`: `integer` | `recording.player`, `session.state`, `done` | Open a recording (.recx) in the player: its model is loaded and its steps are ready; play says whether it starts playing at once (left out: it does not). |
 | `recording.play` | none | `c` / panels | Play | `playing`: `boolean` | `done` | Play the open recording from where it is. |
 | `recording.pause` | none | `c` / panels | Pause | `paused`: `boolean` | `done` | Pause the playing recording. |
 | `recording.step` | none | `c` / panels | Step | `step_index`: `integer` | `done` | Play the next step of the open recording. |
@@ -3317,6 +3317,14 @@ binding and pin ids are registry command names such as `run.initial`, not the
 old main-window table's ids. `keymap.get/set/reset` own the effective keys.
 Each row's keys are its `default_keys` unless the user bound it; "Reset to
 defaults" in the editor clears custom bindings and retains pins. Cmd on macOS is shown by the page as Ctrl in keymap files.
+
+A choice argument a row marks `from_extension` (hello's argument member; `plot.export`, `autox.export` and `array_plot.export` `format`,
+`animation.export` `output`, `value.import_file` `kind`) may be left out when the command has its file, given or asked for with
+`file_picker`: it is then the choice the file's extension names, once the file is known (the choice's name after a dot: `.pdf` for `pdf`;
+`.gif` and `.ppm` for the animation's `animated_gif` and `frames`; `.par` and `.ic` for the value file kinds). An extension that names no
+choice or two is an error naming the file and listing every extension with its choice, and nothing is written; without a file the choice
+is a missing argument as before, and a choice that is given is never replaced. `recording.open`'s `play` is optional (left out: false).
+The page sends no form before the picker for a command whose other arguments are all optional or `from_extension` (web2's `fileOnly`).
 
 For a row with one `file` argument (or a required `path`), `file_picker: true`
 explicitly requests the existing file dialog before execution. All other

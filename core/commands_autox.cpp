@@ -793,7 +793,7 @@ constexpr std::array BOX_ARGUMENTS = {Argument{"x_min", Type::real, true}, Argum
 constexpr std::array DATA_ARGUMENTS = {Argument{TARGET_KEY, Type::choice, true, MAX_TEXT_BYTES, DATA_TARGET_CHOICES}, Argument{FILE_KEY, Type::file, false}};
 constexpr std::array FILE_REQUIRED = {Argument{FILE_KEY, Type::file, true}};
 constexpr auto PICTURE_FORMAT_CHOICES = c_names(picture_format_names);
-constexpr std::array PICTURE_ARGUMENTS = {Argument{FORMAT_KEY, Type::choice, true, MAX_TEXT_BYTES, PICTURE_FORMAT_CHOICES}, Argument{FILE_KEY, Type::file, true},
+constexpr std::array PICTURE_ARGUMENTS = {by_extension(Argument{FORMAT_KEY, Type::choice, true, MAX_TEXT_BYTES, PICTURE_FORMAT_CHOICES}), Argument{FILE_KEY, Type::file, true},
                                           Argument{WINDOW_KEY, Type::window, false}};
 constexpr std::array REDRAW_ARGUMENTS = {Argument{"enabled", Type::boolean, true}};
 constexpr std::array STRETCH_ARGUMENTS = {Argument{"branch", Type::integer, true, MAX_TEXT_BYTES, {}, constant(1)}, Argument{"first_point", Type::integer, true, MAX_TEXT_BYTES, {}, constant(1)},

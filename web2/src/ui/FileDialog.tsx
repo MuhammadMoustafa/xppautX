@@ -2,11 +2,11 @@
    the model's folder as the workspace. Opening a file shows the browser's
    picker, filtered by the ask's `wild`, and copies what the user picks into
    the folder XPP reads (a name taken by other content asks first: Replace,
-   Keep both, Cancel); a picker needs a user gesture, and the ask comes from
-   the core, so the dialog is one prompt with "Choose file…" (focused: Enter
+   Keep both, Cancel); a picker needs a user gesture: the ask opens it from the click's
+   still live activation, else the dialog is one prompt with "Choose file…" (focused: Enter
    opens the picker, Esc cancels). A save has no dialog here: the page answers
    it at once and the browser downloads the file (session.ts browserSave). */
-import {useRef, useState} from 'preact/hooks';
+import {useEffect, useRef, useState} from 'preact/hooks';
 import {canPickOpen, pickOpen, wildExtensions} from '../pickers';
 import type {AskEvent} from '../protocol/types';
 import {useSession, useStore} from './context';
@@ -71,6 +71,12 @@ function OpenFromComputer({ask}: {ask: AskEvent}) {
       input.current!.click(); /* a picker that failed: the plain input still works */
     }
   };
+  /* the ask follows the click or key that sent its command within moments, so that gesture's user activation is still live: the browser's
+     picker opens from it at once, with no Choose file click in between (the dialog stays for a picker that cannot open, or an activation
+     already gone, as a script's command has) */
+  useEffect(() => {
+    if (typeof navigator !== 'undefined' && navigator.userActivation?.isActive) void choose();
+  }, []);
   const confirming = !!confirm && confirm.ask === ask.id;
   const footer = confirming ? replaceFooter(session, confirm!.keepBoth) : {action: {label: copying ? 'Copying…' : 'Choose file…', onClick: () => void choose()}, extra: null};
   return (

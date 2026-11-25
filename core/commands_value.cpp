@@ -147,7 +147,9 @@ static_assert(KIND_CHOICES[0] == value_file_names[0] && KIND_CHOICES[1] == value
 
 constexpr Argument SLOT = {SLOT_KEY, Type::integer, true, MAX_TEXT_BYTES, {}, constant(0)};
 constexpr Argument SLIDER_NAME = {NAME_KEY, Type::model_name, true, MAX_TEXT_BYTES, {}, {}, {}, NameSet::either};
-constexpr Argument KIND = {KIND_KEY, Type::choice, true, MAX_TEXT_BYTES, KIND_CHOICES};
+/* XPPAUT writes parameters to .par and initial conditions to .ic, in the order of the kinds */
+constexpr std::array KIND_EXTENSIONS = {".par", ".ic"};
+constexpr Argument KIND = by_extension({KIND_KEY, Type::choice, true, MAX_TEXT_BYTES, KIND_CHOICES}, KIND_EXTENSIONS);
 /* the file is the model folder's, or asked for (the desktop window's own dialog) when it is left out */
 constexpr Argument FILE = {FILE_KEY, Type::file, false};
 
@@ -176,7 +178,7 @@ constexpr std::array REDO_KEYS = {"Ctrl+Shift+Z"};
 constexpr std::array ROWS = {
     Command{"value.import_file", FILE_ARGUMENTS, XPP_KIND_OPTION, CommandCategory::Files, "Import values file", "Data",
             "Import the parameters (.par) or the initial conditions (.ic) from a file XPPAUT wrote, in the model's folder, all or nothing; with no file, ask for one (the result's file is empty when that question was cancelled). Nothing of ours writes these files.",
-            FILE_RESULTS, STATE_EVENTS, true, load_file},
+            FILE_RESULTS, STATE_EVENTS, true, load_file, {}, {}, "read", "*.par *.ic"},
     Command{"value.set_parameters", PARAMETERS_ARGUMENTS, XPP_KIND_OPTION, CommandCategory::Run, "Set parameters", "Data",
             "Set the values of some parameters; the others keep theirs. Runs nothing.", PARAMETERS_RESULTS, STATE_EVENTS, true,
             set_parameters},

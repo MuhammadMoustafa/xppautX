@@ -2350,7 +2350,19 @@ def check_registry():
               'curve,x,y' in open(os.path.join(folder, 'plot.csv')).read().splitlines()[:2], str(result))
         result, _ = request({'cmd': 'data.export', 'target': 'plot_curves', 'file': 'plot.out', 'format': 'dat'})
         check('data.export of plot_curves takes the format by name', result['rows_written'] > 0, str(result))
-        for refused in [{'cmd': 'plot.export', 'format': 'svg'}, {'cmd': 'plot.export', 'format': 'svg', 'file': '../plot.svg'}, {'cmd': 'plot.export', 'format': 'pdf', 'file': 'plot.pdf', 'axes_font_size': 12},
+        # W873: a format left out is the one the file's extension names; an extension that names none (or no extension) is an error listing the choices
+        result, _ = request({'cmd': 'plot.export', 'file': 'plot-ext.svg'})
+        check('W873: plot.export with no format takes svg from the .svg extension', os.path.basename(result['file']) == 'plot-ext.svg' and
+              open(os.path.join(folder, 'plot-ext.svg')).read().lstrip().startswith(('<?xml', '<svg')), str(result))
+        result, _ = request({'cmd': 'plot.export', 'file': 'plot-ext.pdf'})
+        check('W873: ... and pdf from .pdf', open(os.path.join(folder, 'plot-ext.pdf'), 'rb').read(4) == b'%PDF', str(result))
+        for odd in ('plot-ext.txt', 'plot-ext'):
+            snd(cmd='plot.export', file=odd)
+            _, done = col(lambda e: e.get('ev') == 'done')
+            check('W873: plot.export of %s with no format names the extensions and the choices' % odd,
+                  done.get('status') == 'error' and '.pdf for pdf, .svg for svg' in done.get('error', '') and odd in done.get('error', ''), str(done))
+            check('W873: ... and writes nothing', not os.path.exists(os.path.join(folder, odd)))
+        for refused in [{'cmd': 'plot.export', 'format': 'svg'}, {'cmd': 'plot.export'}, {'cmd': 'plot.export', 'format': 'svg', 'file': '../plot.svg'}, {'cmd': 'plot.export', 'format': 'pdf', 'file': 'plot.pdf', 'axes_font_size': 12},
                         {'cmd': 'plot.export', 'format': 'pdf', 'file': 'plot.pdf', 'color': True}, {'cmd': 'plot.export', 'format': 'svg', 'file': 'plot.svg', 'color': False},
                         {'cmd': 'data.export', 'target': 'plot_curves', 'file': 'plot.zip', 'format': 'zip'}]:
             request(refused, False)
@@ -2730,7 +2742,7 @@ def check_session_commands():
         # the player (it loads the recording's model in its own folder, so after the session files)
         done, _ = call(answers=['d'], cmd='recording.open', file=os.path.join(run_dir, 'mine.recx'), play=False)
         check('W528: recording.open answers the file and the number of steps', done['result'] == {'file': os.path.join(run_dir, 'mine.recx'), 'total_steps': 1}, str(done))
-        for bad, text in ((dict(file=os.path.join(run_dir, 'mine.recx')), 'play'), (dict(play=True), 'file')):
+        for bad, text in ((dict(play=True), 'file'),):
             done, _ = call(cmd='recording.open', **bad)
             check('W528: recording.open %s is refused' % json.dumps(bad), text in error_of(done), str(done))
         done, evs = call(cmd='recording.set_speed', speed=2)
@@ -3063,6 +3075,13 @@ def check_data_value_set():
         good(request, 'value.import_file reads the parameters back', {'file': 'w526.par', 'kind': 'parameters'},
              cmd='value.import_file', kind='parameters', file='w526.par')
         check('W526: ... iapp is what was saved', dict(last_state(request(cmd='session.get_state')[0])['pars'])['iapp'] == 0.07)
+        request(cmd='value.set_parameters', values={'iapp': 0.5})
+        good(request, 'W873: value.import_file with no kind takes it from the .par extension', {'file': 'w526.par', 'kind': 'parameters'}, cmd='value.import_file', file='w526.par')
+        check('W873: ... iapp is what was saved again', dict(last_state(request(cmd='session.get_state')[0])['pars'])['iapp'] == 0.07)
+        with open(os.path.join(r, 'w873.txt'), 'w') as f:
+            f.write(xppaut_par(state['pars']))
+        refused(request, 'W873: value.import_file of a file whose extension is neither', '.par for parameters, .ic for initial_conditions', cmd='value.import_file', file='w873.txt')
+        refused(request, 'W873: value.import_file with neither kind nor file', 'kind', cmd='value.import_file')
         refused(request, 'value.import_file of a file that is not there', 'w526gone.par', cmd='value.import_file', kind='parameters', file='w526gone.par')
         refused(request, 'value.import_file with a path', 'not a plain file name', cmd='value.import_file', kind='parameters', file='../x.par')
         # ---- browser ----
@@ -3316,7 +3335,12 @@ def check_kinescope_animation_array_plot():
         check('W527: animation.export output frames writes PPM files, numbered from 0', result.get('frames_saved') == 7
               and exists('w527_an_0000.ppm', 'w527_an_0001.ppm', 'w527_an_0006.ppm') and not exists('w527_an.ppm')
               and head('w527_an_0000.ppm', 2) == b'P6', str(result))
-        for refused in [{'cmd': 'animation.export', 'file': 'w527_x.ppm'}, {'cmd': 'animation.export', 'output': 'gif', 'file': 'w527_x.gif'},
+        # W873: the output left out is the one the file's extension names (.gif an animated GIF, .ppm the frames)
+        result, evs, _ = req({'cmd': 'animation.export', 'file': 'w873_an.gif'})
+        check('W873: animation.export with no output takes animated_gif from .gif', result.get('frames_saved') == 7 and exists('w873_an.gif') and head('w873_an.gif', 6)[:4] == b'GIF8', str(result))
+        result, evs, _ = req({'cmd': 'animation.export', 'file': 'w873_an.ppm'})
+        check('W873: ... and frames from .ppm', result.get('frames_saved') == 7 and exists('w873_an_0000.ppm') and not exists('w873_an.ppm'), str(result))
+        for refused in [{'cmd': 'animation.export', 'file': 'w527_x.txt'}, {'cmd': 'animation.export', 'output': 'gif', 'file': 'w527_x.gif'},
                         {'cmd': 'animation.export', 'output': 'frames'}, {'cmd': 'animation.export', 'output': 'frames', 'file': '../x.ppm'},
                         {'cmd': 'animation.export', 'output': 'animated_gif', 'file': 'w527_x.ppm'}]:
             req(refused, False)
@@ -3384,8 +3408,10 @@ def check_kinescope_animation_array_plot():
         result, evs, _ = req({'cmd': 'array_plot.export', 'format': 'gif', 'file': 'w527_ap.gif'})
         check('W527: array_plot.export format gif asks the picture and writes it', os.path.basename(result.get('file', '')) == 'w527_ap.gif'
               and result.get('bytes_written') == os.path.getsize(os.path.join(run_dir, 'w527_ap.gif')) > 20 and head('w527_ap.gif', 6) [:4] == b'GIF8', str(result))
+        result, evs, _ = req({'cmd': 'array_plot.export', 'file': 'w873_ap.pdf'})
+        check('W873: array_plot.export with no format takes pdf from the .pdf extension', exists('w873_ap.pdf') and head('w873_ap.pdf', 4) == b'%PDF', str(result))
         for refused in [{'cmd': 'array_plot.export', 'format': 'pdf'}, {'cmd': 'array_plot.export', 'format': 'pdf', 'file': '../a.pdf'}, {'cmd': 'array_plot.export', 'format': 'gif'},
-                        {'cmd': 'array_plot.export', 'format': 'gif', 'file': 'a/b.gif'}, {'cmd': 'array_plot.export', 'file': 'a.pdf'}, {'cmd': 'array_plot.export', 'format': 'svg', 'file': 'a.svg'}, {'cmd': 'array_plot.range', 'file': 'r.gif', 'steps': 0}, {'cmd': 'array_plot.range'},
+                        {'cmd': 'array_plot.export', 'format': 'gif', 'file': 'a/b.gif'}, {'cmd': 'array_plot.export', 'file': 'a.txt'}, {'cmd': 'array_plot.export', 'format': 'svg', 'file': 'a.svg'}, {'cmd': 'array_plot.range', 'file': 'r.gif', 'steps': 0}, {'cmd': 'array_plot.range'},
                         {'cmd': 'array_plot.range', 'file': 'r.gif', 'still': 'yes'}, {'cmd': 'array_plot.range', 'file': 'r.gif', 'variable': 'nothing'}]:
             req(refused, False)
         check('W527: a refused range leaves the next run alone', not exists('r.gif'), str(os.listdir(run_dir)))

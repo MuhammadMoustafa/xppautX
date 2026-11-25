@@ -429,7 +429,9 @@ export class Session {
       this.send({cmd: id, window:this.store.getState().plots.active});
     } else if (id === 'settings.open') this.openSettings('general');
     else if (id === 'keymap.edit') this.openSettings('keymap'); else if (row.panel && !row.arguments?.some(a => a.option) && !row.panel.endsWith('+')) this.openOptions(panelSpec(row.panel)!.group);
-    else if (fileOnly(row)) this.chooseFile(id, values);
+    /* File > Sets > Load a named part of a file: the picker first, then the picked file's parts listed to choose from (ValuesFileDialog), whose choice sends set.load_file */
+    else if (id === 'set.load_file') this.chooseFile('set.list_file_contents', {scope: 'all'});
+    else if (fileOnly(row, values)) this.chooseFile(id, values);
     else if (row.arguments?.length) this.store.dispatch({type: 'commandForm', form: {id, values, fixed}});
     else this.send({cmd: id});
   }
