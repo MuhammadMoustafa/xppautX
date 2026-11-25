@@ -3992,7 +3992,32 @@ def check_run_summary():
         s.close()
 
 
-INDEPENDENT_SECTIONS = {'replace': check_replace_answer, 'export': check_export_several, 'options': check_options_panels, 'atomic': check_atomic_commands, 'equilibria': check_equilibrium_settings, 'registry': check_registry, 'branchjobs': check_autox_branch_jobs, 'session': check_session_commands, 'saved': check_saved_session_leave, 'data': check_data_value_set, 'kinescope': check_kinescope_animation_array_plot, 'firstpoint': lambda: (check_autox_first_point_stability(), check_autox_orbit_first_points(), check_autox_not_applicable()), 'stops': lambda: (check_stops(), check_autox_stops(), check_autox_starts(), check_run_summary(), check_script_refused_run(), check_script_unknown_option(), check_script_repeated_run(), check_script_hopf_cycles_replace(), check_autox_two_parameter_starts(), check_autox_periodic_start_kind(), check_autox_frozen_time(), check_autox_registry(), check_fit_stops(), check_event_count_note(), check_autox_restart_file_stops(), check_autox_multiplier_note(), check_autox_singular_pivot())}
+def check_run_repeat_says_so():
+    """W882 (#964): a follow-all job whose points repeat another job's branch is left out by the join, and the run's end says so
+    once: which job, which branch it repeats, that its points are not kept. lecar_hopf_closure.json's start, one equilibrium run with
+    follow_all_branches off, then the same start with it on: the child job [1, 10] (the second direction's Hopf point at point 5)
+    repeats branch 4 of job [0, 46], so the join leaves it out. Nothing else is said about it: the summary's line is the only report."""
+    d = autoxcompare.read_description(autoxcompare.BASE / 'lecar_hopf_closure.json')
+    start = [dict(kind=kind, name=k, value=v) for group, kind in (('parameters', 'par'), ('initial_conditions', 'ic')) for k, v in d[group].items()]
+    s = jobs_session(d['model'], start)
+    try:
+        autoxcompare.completed(s, dict(cmd='autox.configure_axes', parameter1='iapp'))
+        autoxcompare.completed(s, dict(cmd='autox.configure_numerics', **{'follow_all_branches': False, **d['runs'][0]['autox']}))
+        autoxcompare.completed(s, dict(cmd='autox.run', kind='equilibrium', replace_diagram=False))
+        autoxcompare.set_values(s, start)
+        autoxcompare.completed(s, dict(cmd='autox.configure_numerics', **{'follow_all_branches': True, **d['runs'][0]['autox']}))
+        evs = autoxcompare.completed(s, dict(cmd='autox.run', kind='equilibrium', replace_diagram=False))
+        summaries = [e for e in evs if e.get('ev') == 'autox.summary']
+        lines = summaries[-1]['lines'] if summaries else []
+        repeats = [l for l in lines if re.fullmatch(r'Job \[\d+(, \d+)*\] repeats branch \d+ of job \[\d+(, \d+)*\]: its points are not kept', l)]
+        check('W882: a follow-all job whose points repeat another branch says so once, in the summary: which job, which branch, that its points are not kept (%s)' % repeats,
+              len(summaries) == 1 and len(repeats) == 1 and repeats[0].startswith('Job [1, 10] repeats branch 4 of job [0, 46]'), str(lines)[:400])
+        check('W882: a repeat that is said does not also say that no point was followed (%s)' % lines[-2:],
+              'No branch point or Hopf point to follow' not in lines, str(lines)[-200:])
+    finally:
+        s.close()
+
+INDEPENDENT_SECTIONS = {'replace': check_replace_answer, 'export': check_export_several, 'options': check_options_panels, 'atomic': check_atomic_commands, 'equilibria': check_equilibrium_settings, 'registry': check_registry, 'branchjobs': check_autox_branch_jobs, 'session': check_session_commands, 'saved': check_saved_session_leave, 'data': check_data_value_set, 'kinescope': check_kinescope_animation_array_plot, 'firstpoint': lambda: (check_autox_first_point_stability(), check_autox_orbit_first_points(), check_autox_not_applicable()), 'stops': lambda: (check_stops(), check_autox_stops(), check_autox_starts(), check_run_summary(), check_run_repeat_says_so(), check_script_refused_run(), check_script_unknown_option(), check_script_repeated_run(), check_script_hopf_cycles_replace(), check_autox_two_parameter_starts(), check_autox_periodic_start_kind(), check_autox_frozen_time(), check_autox_registry(), check_fit_stops(), check_event_count_note(), check_autox_restart_file_stops(), check_autox_multiplier_note(), check_autox_singular_pivot())}
 if args.only:
     for name in args.only.split(','):
         if name not in INDEPENDENT_SECTIONS:

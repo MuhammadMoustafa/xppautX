@@ -253,6 +253,7 @@ struct QueuedJob {
   bool skipped=false; /* never run: its direction leaves the parameter window at the start, or an earlier job made it */
   bool started=false,done=false,expanded=false;
   bool left_out=false; /* the join dropped it: it repeats an earlier job's */
+  int branch=0; /* the join's: the branch its points were stored on (0: it stored none), which a job repeating it names */
   std::optional<bool> kept; /* once it and every job before it are settled (settled): whether it is one the join keeps (repeats) */
   bool announced=false; /* once done: its early end, if it had one, was shown */
   xpp::job::BranchJob ended; /* once the jobs ended: how it did (ended_as) */
@@ -306,18 +307,19 @@ const xpp::job::BranchJob *planned(const Queue &q, const AutoxJobKey &key)
    does not wait on it. The mutex is held. */
 bool settled(const QueuedJob &job) { return job.never||(job.done&&job.expanded); }
 
-/* whether one of the jobs the join keeps (in their order) already made a job's start: its twin's loop closed, or a loop closed
-   at the point the job starts from in the other direction, or the start or an end of one made it (autox_queue.h) */
-bool made_by(const std::vector<const QueuedJob *> &kept, const AutoxJobStart &start, const QueuedJob *twin, double epss)
+/* the one of the jobs the join keeps (in their order) that already made a job's start: its twin's loop closed, or a loop closed
+   at the point the job starts from in the other direction, or the start or an end of one made it (autox_queue.h); none when no
+   kept job did */
+const QueuedJob *made_by(const std::vector<const QueuedJob *> &kept, const AutoxJobStart &start, const QueuedJob *twin, double epss)
 {
   for(const QueuedJob *other:kept){
-    if(other->closed&&(other==twin||autox_start_reversed(other->start,start,epss)))return true;
-    if(autox_start_made(other->start,start,epss))return true;
+    if(other->closed&&(other==twin||autox_start_reversed(other->start,start,epss)))return other;
+    if(autox_start_made(other->start,start,epss))return other;
     for(const AutoxJobStart &claim:other->made)
-      if(autox_start_made(claim,start,epss))return true;
-    if(other->start.ips==AutoxProblem::SteadyState&&autox_on_branch(other->run->points,start,epss))return true;
+      if(autox_start_made(claim,start,epss))return other;
+    if(other->start.ips==AutoxProblem::SteadyState&&autox_on_branch(other->run->points,start,epss))return other;
   }
-  return false;
+  return nullptr;
 }
 
 /* the jobs before `key` in the join's order that the join keeps, as far as they are settled (a job's keeping is a function of the
@@ -349,9 +351,13 @@ KeptBefore kept_before(std::deque<QueuedJob> &jobs, const AutoxJobKey &key, doub
    would make is not known, and a job another has dropped makes nothing. The answer is the same whatever the order the jobs
    finish in (a job that says no may still be dropped at the join, once the jobs before it are settled; one that says yes is
    dropped by it). The mutex is held when the jobs are running. */
-bool repeats(std::deque<QueuedJob> &jobs, const AutoxJobKey &key, const AutoxJobStart &start, const QueuedJob *twin, double epss)
+const QueuedJob *repeated_by(std::deque<QueuedJob> &jobs, const AutoxJobKey &key, const AutoxJobStart &start, const QueuedJob *twin, double epss)
 {
   return made_by(kept_before(jobs,key,epss).kept,start,twin,epss);
+}
+bool repeats(std::deque<QueuedJob> &jobs, const AutoxJobKey &key, const AutoxJobStart &start, const QueuedJob *twin, double epss)
+{
+  return repeated_by(jobs,key,start,twin,epss)!=nullptr;
 }
 
 /* whether the points the join keeps, up to and including this job's, are more than the diagram holds, so the join stops at
@@ -653,13 +659,16 @@ void make_found_jobs(Queue &q, QueuedJob &job)
   }
 }
 
+/* a start that note_repeated_ends says when it repeats: the equilibria through a cycle branch's end (a forward one) */
+bool named_by_note(const AutoxJobStart &start) { return !start.equilibrium.empty()&&start.sign.value_or(1)>=0; }
+
 /* why no job follows the equilibria through a cycle branch's end the diagram already holds, one note per end, said at the join (a job that
    was dropped and one never made are the same repeat, and the join's view does not depend on which finished first). `branch` is the
    cycle branch's number in the diagram; the mutex is not needed, every job has ended */
 void note_repeated_ends(Queue &q, const QueuedJob &job, int branch, std::vector<std::string> &notes)
 {
   for(const AutoxJobStart &start:autox_found_starts(job.start.ips,job.run->points,job.run->stop)){
-    if(start.equilibrium.empty()||start.sign.value_or(1)<0||!repeats(q.jobs,autox_child_key(job.key,start.point,false),start,nullptr,q.epss))continue;
+    if(!named_by_note(start)||!repeats(q.jobs,autox_child_key(job.key,start.point,false),start,nullptr,q.epss))continue;
     notes.push_back(xpp::format("autoX: the equilibria through the end of branch {} where the parameter is {} are not followed: they are on an equilibrium branch the diagram already holds (within {} times newton.special_point_tolerance = {} of it)",
                                 branch,autox_number_text(start.id->parameters[0]),autox_number_text(autox_same_point_factor),autox_number_text(q.epss)));
   }
@@ -917,12 +926,17 @@ Result<> autox_run_jobs(AutoxParts s, int iold, int isave)
       job.left_out=true;
       continue;
     }
+    /* a repeat is said once, by the job it repeats (summarize_run, autox_run.cpp), whether the job started or not: the join's view
+       holds every kept job before it. An equilibrium's repeat is said by note_repeated_ends, and a drop of hold_for_neighbour's is
+       a repeat too (monotone: the join's view repeats it as well) */
+    const QueuedJob *by=repeated_by(q.jobs,job.key,job.start,job.twin,q.epss);
+    if(by&&!named_by_note(job.start))s.autox_state->stop.repeats.push_back(AutoxRepeat{job.key.path,by->key.path,by->branch});
     if(!job.started){
       if(!job.warnings.empty())xpp::log(XPP_LOG_WARN,"{}",job.warnings);
       autox_stop_merge(s.autox_state->stop,std::move(run.stop));
       continue;
     }
-    if(run.dropped||repeats(q.jobs,job.key,job.start,job.twin,q.epss)){
+    if(run.dropped||by){
       job.left_out=true;
       continue;
     }
@@ -964,7 +978,8 @@ Result<> autox_run_jobs(AutoxParts s, int iold, int isave)
       if(present)
         if(auto numbered=renumber_file(*s.model().fs,run,*path,kind,mine,kind==RunFile::diagnostics||!cut?nullptr:&stored);!numbered&&!reported)reported=numbered.error();
     if(!stored.empty()){
-      joined.push_back({job.key.path,stored.begin()->first}); /* one run, one branch: every point stored has it */
+      job.branch=stored.begin()->first; /* one run, one branch: every point stored has it */
+      joined.push_back({job.key.path,job.branch});
       note_repeated_ends(q,job,stored.begin()->first,repeated_notes);
     }
     /* the next job numbers after this one's */

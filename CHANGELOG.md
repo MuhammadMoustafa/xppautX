@@ -37,6 +37,7 @@ the bugs found in XPPAUT itself are in [docs/xppaut-findings.md](docs/xppaut-fin
 
 ### Fixed
 
+- A follow-all branch job whose points repeat another branch says so in autoX's Output and the summary, once: "Job [1, 10] repeats branch 4 of job [0, 46]: its points are not kept". Before, the join dropped it silently, and a run that followed a point with no kept job said "No branch point or Hopf point to follow" (W882, [#964](https://github.com/MuhammadMoustafa/xppautX/issues/964)).
 - autoX's Grab goes straight to picking on the diagram: its form, empty, no longer opens first (the row's arguments are all optional and it has a pick mode, `pick` in the registry row; W878, [#960](https://github.com/MuhammadMoustafa/xppautX/issues/960)).
 - The autoX script panel's runs fit at 375 px: each run's Run stays on its row, and the run list scrolls above the status bar, Run all below it (W879, [#961](https://github.com/MuhammadMoustafa/xppautX/issues/961)).
 - A periodic orbit's no-convergence stop at the smallest step names mesh.intervals and its value as the option to raise (W876, [#958](https://github.com/MuhammadMoustafa/xppautX/issues/958); W877, [#959](https://github.com/MuhammadMoustafa/xppautX/issues/959)): lecar's cycles from its Hopf point at the default 15 intervals stop at iapp 0.083257, near the SNIC on the fold, which 30 intervals reach; the default stays 15, XPPAUT's (maintainer, 2026-11-25). An equilibrium branch, which has no mesh, does not say it

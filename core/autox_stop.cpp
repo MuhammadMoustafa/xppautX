@@ -164,6 +164,7 @@ void autox_stop_clear(AutoxStop &st)
     st.last_why = AUTOX_STOP_NONE;
     st.last_text.clear();
     st.ends.clear();
+    st.repeats.clear();
     st.followed = 0;
     st.noconv = {};
     st.notes.clear();

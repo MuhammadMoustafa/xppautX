@@ -823,6 +823,14 @@ std::string words(std::string_view name)
   return text;
 }
 
+/* a job's path as the join names it: "[0, 92]" */
+std::string job_text(const std::vector<long> &path)
+{
+  std::string text = "[";
+  for (std::size_t k = 0; k < path.size(); ++k) text += xpp::format("{}{}", k ? ", " : "", path[k]);
+  return text + "]";
+}
+
 /* a point found on a branch, in words: "fold (LP 23) at hfix = 0.2701" */
 std::string found_text(const XppRunFound &f)
 {
@@ -892,8 +900,14 @@ XppRunSummary summarize_run(const AutoxParts &s, std::size_t first)
     if (branch.stopped) text += xpp::format("; stopped at point {}: {}", branch.pt, branch.text);
     lines.push_back(std::move(text));
   }
+  for (const AutoxRepeat &r : a.stop.repeats) {
+    std::string text = xpp::format("Job {} repeats ", job_text(r.job));
+    if (r.br) text += xpp::format("branch {} of ", r.br);
+    lines.push_back(text + xpp::format("job {}: its points are not kept", job_text(r.of)));
+  }
   lines.insert(lines.end(), out.lines.begin(), out.lines.end());
-  if (a.follow_all_branches && a.stop.followed == 0 && !followable && !out.branches.empty())
+  /* not said when a job was left out as a repeat: that job followed a point, and the repeat line says what became of it */
+  if (a.follow_all_branches && a.stop.followed == 0 && !followable && a.stop.repeats.empty() && !out.branches.empty())
     lines.push_back("No branch point or Hopf point to follow");
   out.lines = std::move(lines);
   return out;
@@ -907,12 +921,13 @@ Result<> autox_run_start(AutoxParts s, const AutoxRunRequest &request)
 {
   AutoxState &a = *s.autox_state;
   a.stop.ends.clear();
+  a.stop.repeats.clear();
   a.stop.followed = 0;
   const std::size_t before = diagram_stored_points(s);
   const Result<> ran = start_run(s, request);
   /* the frozen t's line leads the run's Output, once: the run's end sends it, or the log when the run stored nothing */
   const std::optional<std::string> held = ran ? autox_time_note(s) : std::nullopt;
-  if (diagram_stored_points(s) > before || !a.stop.ends.empty()) {
+  if (diagram_stored_points(s) > before || !a.stop.ends.empty() || !a.stop.repeats.empty()) {
     const std::size_t first = request.replace_diagram && !request.from_point ? 0 : before;
     XppRunSummary summary = summarize_run(s, first);
     if (held) summary.lines.insert(summary.lines.begin(), *held);

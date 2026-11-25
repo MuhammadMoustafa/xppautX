@@ -74,6 +74,14 @@ struct AutoxBranchEnd {
     std::string text;
 };
 
+/* a follow-all job the join did not keep, because its points repeat the branch of a job before it (autox_jobs.cpp): the job's
+   path, the path of the job it repeats, and that job's branch in the diagram (0: it stored no points) */
+struct AutoxRepeat {
+    std::vector<long> job;
+    std::vector<long> of;
+    long br;
+};
+
 /* what autoX runs recorded: one run's (AutoxRun::stop), or the last runs'
    a Session shows (AutoxState::stop) */
 struct AutoxStop {
@@ -86,6 +94,8 @@ struct AutoxStop {
     std::string last_text;
     /* every branch end the run made, in order: what the end of a run says (autox_run.cpp's summary) */
     std::vector<AutoxBranchEnd> ends;
+    /* the jobs the join left out as repeats, in the join's order: what the run's end says (autox_run.cpp's summary) */
+    std::vector<AutoxRepeat> repeats;
     /* the jobs a follow-all-branches run started from the points it found (autox_jobs.cpp's join) */
     int followed = 0;
     /* what the run lost or could not trust (autox_stop_note), in words */
