@@ -160,7 +160,7 @@ constexpr std::array GET_ARGUMENTS_USER = {SCOPE_ARGUMENT};
 constexpr std::array CONFIGURE_ARGUMENTS = {
     Argument{.name = GROUP_KEY, .type = Type::choice, .required = true, .choices = GROUP_CHOICES, .description = "The group of settings.json the values are in."},
     Argument{.name = VALUES_KEY, .type = Type::map, .required = true, .max_length = MAX_COMMAND_BYTES, .element = Type::text, .max_items = MAX_ITEMS,
-             .description = "Each key of the group with its value as JSON text; a key's label, help and limits are in hello's settings rows."},
+             .description = "Each key of the group with its value as JSON text; a key's label, help and limits are in the settings' own rows."},
     SCOPE_ARGUMENT};
 constexpr std::array RESET_ARGUMENTS = {
     Argument{.name = "group", .type = Type::text, .required = true, .description = "The group of settings.json: general, colors, page or updates."},

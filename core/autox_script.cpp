@@ -3,8 +3,10 @@
 #include "autox_codes.h"
 #include "format_version.h"
 #include "json_number.h"
+#include "model_autox_numerics.h"
 #include "odex_block.h"
 #include "xpp_path.h"
+#include "xpp_util.h"
 #include "xpp_lines.h"
 
 #include <algorithm>
@@ -67,14 +69,38 @@ void append_member(std::string &out, std::string_view key, const odex::Value &va
     append_value(out, value, where);
 }
 
+/* how many nearest option names a "no option named" error suggests (its hint) */
+constexpr std::size_t option_hints = 3;
+
+/* the Numerics' keys, the names a run's options may give */
+std::vector<std::string> numerics_names()
+{
+    std::vector<std::string> names;
+    for (int i = 0; i < AUTOX_NUM_N; ++i) names.emplace_back(autox_settings_num_key(i));
+    return names;
+}
+
+/* an option of run `run` that names no Numerics field: the error at its own line and column, with the nearest names */
+void check_option_name(const odex::Block &group, const odex::Member &m, std::string_view run, const std::vector<std::string> &names)
+{
+    if (std::ranges::find(names, m.key) != names.end()) return;
+    std::string hint;
+    for (const std::string &near : nearest_names(m.key, names, option_hints))
+        hint += (hint.empty() ? " (the nearest: \"" : ", \"") + near + "\"";
+    if (!hint.empty()) hint += ")";
+    group.fail(m, xpp::format("in run \"{}\": no option named \"{}\"{}", run, m.key, hint));
+}
+
 /* the members of a group that has nothing but numbers or choices of autox.run's, each as an argument */
-void append_group(std::string &out, std::optional<odex::Block> &group, std::set<std::string> &given, bool options)
+void append_group(std::string &out, std::optional<odex::Block> &group, std::set<std::string> &given, bool options, std::string_view run)
 {
     if (!group) return;
+    const std::vector<std::string> names = options ? numerics_names() : std::vector<std::string>{};
     for (const odex::Member *m : group->members()) {
         const bool own = std::ranges::find(run_arguments, m->key) != run_arguments.end();
         if (options && own)
             group->fail(*m, xpp::format("{} is not an option: a run's kind, start and homoclinic equilibria are its own keys", m->key));
+        if (options && !own) check_option_name(*group, *m, run, names);
         if (!given.insert(m->key).second) group->fail(*m, xpp::format("{} is given twice in this run", m->key));
         append_member(out, m->key, m->value, *group);
     }
@@ -120,9 +146,9 @@ AutoxScriptRun read_run(odex::Block &r, const std::vector<AutoxScriptRun> &known
     }
     std::optional<odex::Block> settle = r.group("settle"), homoclinic = r.group("homoclinic"), options = r.group("options");
     if (settle && run.from) settle->fail("a run from a stored point has no settling: it starts at the point");
-    append_group(run.arguments, settle, given, false);
-    append_group(run.arguments, homoclinic, given, false);
-    append_group(run.arguments, options, given, true);
+    append_group(run.arguments, settle, given, false, run.name);
+    append_group(run.arguments, homoclinic, given, false, run.name);
+    append_group(run.arguments, options, given, true, run.name);
     if (settle) settle->done();
     if (homoclinic) homoclinic->done();
     if (options) options->done();

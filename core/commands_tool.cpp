@@ -84,7 +84,7 @@ constexpr std::array ROWS = {
     Command{"export.several", {}, XPP_KIND_VIEW, CommandCategory::Files, "Several…", "File/Export",
             "Open a window listing every export: each format of each one a tick, one folder for the files, one command per file written.", {}, CALCULATOR_EVENTS, false, page_tool},
     Command{"source.run_action", INDEX_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Panels, "Run source action", "",
-            "Run the action of an active comment of the model's source (a `{par=value,...}` block): comment `index` of session.get_source's list.",
+            "Run the action of an active comment of the model's source (a `{par=value,...}` block): comment `index` of the source's comment list.",
             RAN_RESULTS, RAN_EVENTS, true, run_source_action},
     Command{"button.run", INDEX_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Panels, "Run model button", "",
             "Press a button of the model: run the command it names, counted from 0 in the order the model gives them.", RAN_RESULTS,

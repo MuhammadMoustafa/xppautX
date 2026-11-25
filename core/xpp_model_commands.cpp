@@ -82,8 +82,8 @@ constexpr std::array LOAD_EVENTS = {xpp::events::HELLO, xpp::events::SESSION_STA
 constexpr std::array KEY_0 = {"Ctrl+O"};
 constexpr std::array ROWS = {
     Command{"session.open_model", OPEN_MODEL_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Files, "Open model", "File",
-            "Open a model: a model file by its path (--server's own input only), a bundled example by its name, or one of the "
-            "recent models by its place in hello.start.recent. Asks first whether to save this session.",
+            "Open a model: a model file, a bundled example by its name, or one of the recent models. "
+            "Asks first whether to save this session.",
             OPEN_MODEL_RESULTS, LOAD_EVENTS, true, open_model, OPEN_MODEL_GROUPS, KEY_0},
     Command{"session.reload_model", {}, XPP_KIND_DATA, CommandCategory::Files, "Reload model", "File",
             "Load the model's file again; the parameters, initial data, numerics and autoX options keep their values by name.",

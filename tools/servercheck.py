@@ -656,6 +656,27 @@ def check_script_refused_run():
         shutil.rmtree(folder, ignore_errors=True)
 
 
+def check_script_unknown_option():
+    """W856: a script's run that names an option the Numerics do not have is refused when the file is read, at the option's own
+    line and column, the run by its name, "no option named" with the nearest option names: the one error --silent gives"""
+    source = autoxcompare.ROOT / 'tools/models'
+    folder = tempfile.mkdtemp(prefix='xppw856')
+    try:
+        shutil.copy(source / 'pvn_slowfast_hcn.odex', folder)
+        lines = ['version: 4,', 'model: "pvn_slowfast_hcn.odex",', 'runs: [',
+                 '  { name: "h up", kind: equilibrium, replace_diagram: true, parameters: ["hfix"],',
+                 '    options: { step.intial: 0.001, limits.steps: 5000 } },', ']']
+        with open(os.path.join(folder, 'typo_w856.autox'), 'w', encoding='utf-8', newline='\n') as f:
+            f.write('\n'.join(lines) + '\n')
+        proc = subprocess.run([os.path.abspath(args.server), 'typo_w856.autox', '--silent'], cwd=folder, capture_output=True, text=True, timeout=300 * SLOW)
+        where = '%s:%d:%d:' % ('typo_w856.autox', 5, lines[4].index('step.intial') + 1)
+        message = 'in run "h up": no option named "step.intial" (the nearest: "step.initial")'
+        check('W856: a script naming an option the Numerics lack is refused at that option\'s line and column, naming the run and the nearest option names',
+              proc.returncode != 0 and where in proc.stderr and message in proc.stderr and 'Unknown argument' not in proc.stderr,
+              '%s %s' % (proc.returncode, proc.stderr[:300]))
+    finally:
+        shutil.rmtree(folder, ignore_errors=True)
+
 def check_script_repeated_run():
     """W857 variant (b): follow_all_branches stays on in a script, and a run whose start lies on a branch the diagram already holds is not
     made: no branch and no point, no error, the Script panel's row says why (autox.script_runs' skipped), the log says it once, and the
@@ -1768,6 +1789,36 @@ def check_autox_singular_pivot():
         s.close()
 
 
+# a choice's value is no text a user reads: its label is derived from it (choiceLabel), so only the words above are checked
+USER_TEXT_KEYS = {'label', 'name', 'description', 'help', 'action', 'section_label', 'title', 'notes'}
+USER_TEXT_BANNED = ('hello', '--server', 'autox_run', 'autoxinfo')
+
+def user_text_strings(node, out):
+    """every string a user reads in hello: the values of the keys a page shows (labels, descriptions, helps, choices)"""
+    if isinstance(node, dict):
+        for key, value in node.items():
+            if key in USER_TEXT_KEYS:
+                out.extend((key, text) for text in (value if isinstance(value, list) else [value]))
+            user_text_strings(value, out)
+    elif isinstance(node, list):
+        for value in node:
+            user_text_strings(value, out)
+    return out
+
+def check_user_text(hello):
+    """W856: what a user reads carries user text only: no protocol word (hello, --server, autox_run, autoxinfo) and no
+    command id (a dotted registry name such as session.open_model) in a label, a description or a help"""
+    dotted = {c['cmd'] for c in hello['commands'] if '.' in c['cmd']}
+    found = []
+    for key, text in user_text_strings(hello, []):
+        if not isinstance(text, str):
+            continue
+        words = [w for w in USER_TEXT_BANNED if re.search(r'(?<![\w-])' + re.escape(w) + r'(?![\w-])', text)]
+        words += [c for c in sorted(dotted) if re.search(r'(?<![\w.])' + re.escape(c) + r'(?![\w])', text)]
+        if words: found.append(('%s "%s"' % (key, text), words))
+    check('W856: no label, description, help or choice names a protocol word or a command id: ' + '; '.join(
+          '%s names %s' % (t, ', '.join(w)) for t, w in found[:5]), not found)
+
 def check_registry():
     """Exercise typed commands, named graphs/diagrams, errors and recordings."""
     proc, folder, snd, col, _ = launch_server()
@@ -1775,6 +1826,7 @@ def check_registry():
         initial, _ = col(lambda e: e.get('ev') == 'done')
         hello = next(e for e in initial if e.get('ev') == 'hello')
         registry = [c for c in hello['commands'] if c.get('completion') == 'done']
+        check_user_text(hello)
         by_name = {c['cmd']: c for c in registry}
         check('registry: window commands declare entry-driven argument types',
               by_name['window.rename']['arguments'][0]['type'] == 'window' and
@@ -3748,7 +3800,7 @@ def check_options_panels():
 
 
 
-INDEPENDENT_SECTIONS = {'replace': check_replace_answer, 'export': check_export_several, 'options': check_options_panels, 'atomic': check_atomic_commands, 'equilibria': check_equilibrium_settings, 'registry': check_registry, 'branchjobs': check_autox_branch_jobs, 'session': check_session_commands, 'data': check_data_value_set, 'kinescope': check_kinescope_animation_array_plot, 'firstpoint': lambda: (check_autox_first_point_stability(), check_autox_orbit_first_points(), check_autox_not_applicable()), 'stops': lambda: (check_stops(), check_autox_stops(), check_autox_starts(), check_script_refused_run(), check_script_repeated_run(), check_script_hopf_cycles_replace(), check_autox_two_parameter_starts(), check_autox_periodic_start_kind(), check_autox_registry(), check_fit_stops(), check_event_count_note(), check_autox_restart_file_stops(), check_autox_multiplier_note(), check_autox_singular_pivot())}
+INDEPENDENT_SECTIONS = {'replace': check_replace_answer, 'export': check_export_several, 'options': check_options_panels, 'atomic': check_atomic_commands, 'equilibria': check_equilibrium_settings, 'registry': check_registry, 'branchjobs': check_autox_branch_jobs, 'session': check_session_commands, 'data': check_data_value_set, 'kinescope': check_kinescope_animation_array_plot, 'firstpoint': lambda: (check_autox_first_point_stability(), check_autox_orbit_first_points(), check_autox_not_applicable()), 'stops': lambda: (check_stops(), check_autox_stops(), check_autox_starts(), check_script_refused_run(), check_script_unknown_option(), check_script_repeated_run(), check_script_hopf_cycles_replace(), check_autox_two_parameter_starts(), check_autox_periodic_start_kind(), check_autox_registry(), check_fit_stops(), check_event_count_note(), check_autox_restart_file_stops(), check_autox_multiplier_note(), check_autox_singular_pivot())}
 if args.only:
     for name in args.only.split(','):
         if name not in INDEPENDENT_SECTIONS:

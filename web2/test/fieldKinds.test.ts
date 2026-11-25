@@ -189,6 +189,9 @@ test('a file format is labelled by its name as written, lowercase, without the d
   setFileFormats(['dat', 'csv', 'csv.gz', 'npz', 'pdf', 'svg', 'gif']);
   assert.equal(choiceLabel('csv'), 'csv');
   assert.equal(choiceLabel('csv.gz'), 'csv.gz');
+  /* W856: a dotted option name reads as the core's name_label does: its group, a space, its own name */
+  assert.equal(choiceLabel('limits.parameter_min'), 'Limits parameter min');
+  assert.equal(choiceLabel('mesh.intervals'), 'Mesh intervals');
   assert.equal(choiceLabel('pdf'), 'pdf');
   assert.equal(choiceLabel('both'), 'Both');
   setFileFormats([]);

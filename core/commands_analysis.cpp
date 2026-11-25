@@ -448,7 +448,7 @@ constexpr std::array ROWS = {
             "Make the interaction (H) function of the adjoint for the coupling of each differential equation; one left out keeps its coupling.",
             COMPUTED_RESULTS, DONE_EVENTS, true, adjoint_interaction},
     Command{"adjoint.range", ENABLED_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Analysis, "Over a range", "Analysis/Adjoint",
-            "Have the next range run also compute the orbit, adjoint and H function at each step; the range itself is run.range.",
+            "Have the next range run also compute the orbit, adjoint and H function at each step; the range itself is the one-parameter range run.",
             ADJOINT_RANGE_RESULTS, STATE_EVENTS, true, adjoint_range, {}, {}, "read", "*", "", "Compute"},
     Command{"adjoint.show", {}, XPP_KIND_DATA, CommandCategory::Analysis, "Show", "Analysis/Adjoint",
             "Show the adjoint in the data table.", LOADED_RESULTS, DATA_EVENTS, true, done_with<load_adjoint, LOADED>},

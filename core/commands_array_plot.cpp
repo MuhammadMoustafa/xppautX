@@ -208,7 +208,7 @@ constexpr std::array ROWS = {
     Command{"array_plot.fit", {}, XPP_KIND_VIEW, CommandCategory::Plot, "Fit array plot", "",
             "Set the color scale's ends to the smallest and largest value shown.", FIT_RESULTS, APLOT_EVENTS, true, fit, {}, {}},
     Command{"array_plot.range", RANGE_ALL_ARGUMENTS, XPP_KIND_COMPUTE, CommandCategory::Plot, "Array plot range", "",
-            "Run once for each value of a parameter or variable as run.range does, saving the array plot as GIF files of the model's folder: one movie, or with still one picture per run; tag writes the swept value on each.",
+            "Run once for each value of a parameter or variable as the one-parameter range run does, saving the array plot as GIF files of the model's folder: one movie, or with still one picture per run; tag writes the swept value on each.",
             RANGE_RESULTS, RANGE_EVENTS, true, range, {}, {}},
     Command{"array_plot.export", EXPORT_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Plot, "Array plot as", "File/Export",
             "Write the array plot into a file of the model's folder: format pdf (a PDF picture with the labels the options hold) or gif (the picture as the window shows it).",

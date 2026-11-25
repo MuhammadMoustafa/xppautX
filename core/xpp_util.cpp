@@ -43,6 +43,40 @@ std::string name_label(std::string_view name)
     return label;
 }
 
+namespace {
+/* Levenshtein distance of a and b: the fewest insertions, deletions and substitutions turning one into the other */
+std::size_t edit_distance(std::string_view a, std::string_view b)
+{
+    std::vector<std::size_t> row(b.size() + 1);
+    std::iota(row.begin(), row.end(), std::size_t{0});
+    for (std::size_t i = 1; i <= a.size(); ++i) {
+        std::size_t diagonal = row[0];
+        row[0] = i;
+        for (std::size_t j = 1; j <= b.size(); ++j) {
+            const std::size_t above = row[j];
+            row[j] = std::min({row[j] + 1, row[j - 1] + 1, diagonal + (a[i - 1] == b[j - 1] ? 0 : 1)});
+            diagonal = above;
+        }
+    }
+    return row[b.size()];
+}
+} // namespace
+
+std::vector<std::string> nearest_names(std::string_view name, const std::vector<std::string> &candidates, std::size_t count)
+{
+    /* a third of the name's length, at least one edit: a name needing more changes than that is a different name */
+    const std::size_t limit = std::max<std::size_t>(1, name.size() / 3);
+    std::vector<std::pair<std::size_t, std::string>> scored;
+    for (const std::string &candidate : candidates) {
+        const std::size_t distance = edit_distance(name, candidate);
+        if (distance <= limit) scored.emplace_back(distance, candidate);
+    }
+    std::stable_sort(scored.begin(), scored.end(), [](const auto &x, const auto &y) { return x.first < y.first; });
+    std::vector<std::string> out;
+    for (std::size_t i = 0; i < scored.size() && i < count; ++i) out.push_back(scored[i].second);
+    return out;
+}
+
 std::string short_name(std::string_view name, int width)
 {
   const size_t w=width>0?static_cast<size_t>(width):0;

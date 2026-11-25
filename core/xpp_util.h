@@ -1,6 +1,7 @@
 #pragma once
 
 
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <string>
@@ -39,6 +40,10 @@ std::vector<std::vector<int>> connected_components(const std::vector<std::vector
    ("mesh_intervals" is "Mesh intervals", "limits.steps" is "Limits steps"), derived and never written apart
    (W381; web2's choiceLabel is the page's) */
 std::string name_label(std::string_view name);
+
+/* the names of `candidates` nearest to `name` by edit distance, the nearest first, at most `count`; a name farther than
+   a third of its length (at least one letter) is no near name and is left out (W856: a "no option named" error's hint) */
+std::vector<std::string> nearest_names(std::string_view name, const std::vector<std::string> &candidates, std::size_t count);
 
 
 /* s without its white space (de_space's, up to a NUL in it) */

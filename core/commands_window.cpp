@@ -586,7 +586,7 @@ constexpr std::array ROWS = {
             "Set the first group's share of the main area, from 0.2 to 0.8, while there is a split (the splitter's).", SHARE_RESULTS, STATE_EVENTS, true,
             set_the_split_share},
     Command{"window.hide", WINDOW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Hide window", "",
-            "Hide a window: it keeps everything it holds and comes back with window.show. The main graph is always shown, so it cannot be hidden.", SHOWN_RESULTS, STATE_EVENTS, true, hide_window},
+            "Hide a window: it keeps everything it holds and comes back with the Show command. The main graph is always shown, so it cannot be hidden.", SHOWN_RESULTS, STATE_EVENTS, true, hide_window},
     Command{"window.show", WINDOW_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Show window", "",
             "Show a hidden window exactly as it was.", SHOWN_RESULTS, STATE_EVENTS, true, show_window},
     Command{"window.close", DESTROY_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Plot, "Close window", "",

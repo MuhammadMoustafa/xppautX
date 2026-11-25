@@ -225,7 +225,7 @@ constexpr std::array ROWS = {
             "Show the stored data transposed in the table: columns columns from first_column in steps of column_skip, and rows rows from first_row in steps of row_skip, each column a row; left out, the last values.",
             TRANSPOSE_RESULTS, DATA_EVENTS, true, transpose},
     Command{"data.page", PAGE_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Tools, "Browser page", "",
-            "Choose the block of the table the client shows: rows from_row on (at most the limit hello gives), count rows (0 stops the block's events), the columns after T from first_column; answered at once, even during a computation.",
+            "Choose the block of the table the client shows: rows from_row on (at most the table's row limit), count rows (0 stops the block's events), the columns after T from first_column; answered at once, even during a computation.",
             PAGE_RESULTS, PAGE_EVENTS, false, page, {}, {}},};
 
 } // namespace

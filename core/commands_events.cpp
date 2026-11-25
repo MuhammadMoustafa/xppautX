@@ -24,7 +24,7 @@ constexpr std::array EVENTS = {xpp::events::SESSION_STATE, xpp::events::DONE};
 
 constexpr std::array ROWS = {
     Command{"events.subscribe", SUBSCRIBE_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Panels, "Subscribe to events", "",
-            "Send the heavy data events named (hello.features lists them) from now on, each at the end of this command; encoding f32 sends their value arrays "
+            "Send the heavy data events named (the list of heavy events the program offers) from now on, each at the end of this command; encoding f32 sends their value arrays "
             "as base64 float32 (what is left out stays as it was); diagram says whether autoX's diagram points are sent.",
             SUBSCRIBE_RESULTS, EVENTS, false, front_end},
     Command{"events.unsubscribe", UNSUBSCRIBE_ARGUMENTS, XPP_KIND_VIEW, CommandCategory::Panels, "Unsubscribe from events", "",

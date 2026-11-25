@@ -46,7 +46,7 @@ constexpr std::array ROWS = {
             "Stop recording and save the recording (.recx added); left out, the file is asked for.",
             STOP_RESULTS, STATE_EVENTS, false, front_end, {}, {}, "write", "*.recx"},
     Command{"recording.open", OPEN_ARGUMENTS, XPP_KIND_DATA, CommandCategory::Panels, "Open", "File/Recording",
-            "Open a recording (.recx; its path, which only --server's own input may give) in the player: its model is loaded and its steps are ready; play says whether it starts playing at once.", OPEN_RESULTS, PLAYER_EVENTS, false,
+            "Open a recording (.recx) in the player: its model is loaded and its steps are ready; play says whether it starts playing at once.", OPEN_RESULTS, PLAYER_EVENTS, false,
             front_end, {}, {}, "read", "*.recx"},
     Command{"recording.play", {}, XPP_KIND_CONTROL, CommandCategory::Panels, "Play", "", "Play the open recording from where it is.", PLAY_RESULTS,
             DONE_EVENTS, false, front_end},
@@ -64,7 +64,7 @@ constexpr std::array ROWS = {
     Command{"recording.add_note", NOTE_ARGUMENTS, XPP_KIND_CONTROL, CommandCategory::Panels, "Add note", "",
             "Put a note on the next recorded step.", NOTE_RESULTS, DONE_EVENTS, false, front_end},
     Command{"recording.set_speed", SPEED_ARGUMENTS, XPP_KIND_CONTROL, CommandCategory::Panels, "Set speed", "",
-            "Set the speed the recording's paces are divided by (hello.player_speed gives the bounds).", SPEED_RESULTS, DONE_EVENTS, false, front_end},};
+            "Set the speed the recording's paces are divided by, within the player's speed limits.", SPEED_RESULTS, DONE_EVENTS, false, front_end},};
 
 } // namespace
 
