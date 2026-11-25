@@ -622,7 +622,7 @@ constexpr OptionRow rows[] = {
   {.group = option_group::continuation, .kind = OptionKind::choice, .odex = "follow_all_branches", .help = "Whether a run follows every branch it finds, not only the one it started on.", .once = true,
    .boolean = member([](auto &s) -> auto & { return s.autox_state->follow_all_branches; }),
    .rule = OptionRule::choice, .autox_numeric = AUTOX_NUM_FOLLOW_ALL_BRANCHES, .choices = boolean_names},
-  {.group = option_group::continuation, .kind = OptionKind::choice_set, .odex = "special_points", .help = "The codimension-two points a run detects: a set of their names, none for none.", .once = true,
+  {.group = option_group::continuation, .kind = OptionKind::choice_set, .odex = "special_points", .help = "The codimension-two points a run detects.", .once = true,
    .show = [](const SessionParts &s) {
      std::string names;
      for (std::size_t i = 0; i < autox_codim_kinds.size(); ++i)

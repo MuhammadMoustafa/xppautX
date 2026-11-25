@@ -106,7 +106,7 @@
         "one_way_branch_switch": {"type": "boolean", "minimum": 0, "maximum": 1, "title": "Switched branches: one way", "description": "A branch autoX switches to is followed from the switch point in its starting step's direction only, not both ways.", "default": false},
         "suppress_branch_points": {"type": "boolean", "minimum": 0, "maximum": 1, "title": "Suppress branch points", "description": "Whether branch points are left out of the diagram.", "default": false},
         "follow_all_branches": {"type": "boolean", "minimum": 0, "maximum": 1, "title": "Follow all branches", "description": "Whether a run follows every branch it finds, not only the one it started on.", "default": true},
-        "special_points": {"type": "string", "title": "Special points", "description": "The codimension-two points a run detects: a set of their names, none for none."},
+        "special_points": {"type": "string", "title": "Special points", "description": "The codimension-two points a run detects."},
         "limits.steps": {"type": "integer", "minimum": 1, "title": "Limits steps", "description": "The most continuation steps a run takes before it stops. From an XPPAUT .ode: NMAX.", "default": 200},
         "limits.parameter_min": {"type": "number", "title": "Limits parameter min", "description": "A continuation run stops when the parameter falls below this. From an XPPAUT .ode: PARMIN.", "default": 0},
         "limits.parameter_max": {"type": "number", "title": "Limits parameter max", "description": "A continuation run stops when the parameter rises above this. From an XPPAUT .ode: PARMAX.", "default": 2},

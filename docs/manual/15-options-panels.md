@@ -130,7 +130,7 @@ ends; the interface group (sliders, buttons, animation) has its own editors.
 - **One way branch switch** (`one_way_branch_switch`): A branch autoX switches to is followed from the switch point in its starting step's direction only, not both ways.
 - **Suppress branch points** (`suppress_branch_points`): Whether branch points are left out of the diagram.
 - **Follow all branches** (`follow_all_branches`): Whether a run follows every branch it finds, not only the one it started on.
-- **Special points** (`special_points`): The codimension-two points a run detects: a set of their names, none for none.
+- **Special points** (`special_points`): The codimension-two points a run detects.
 
 ### Limits
 
