@@ -209,11 +209,11 @@ async function settled(read) {
 }
 const steadyP = P;
 
-/* File > Open model as the page sends it: the menu's key asks for the file, which the answer names (session.open_model's path is --server's own input) */
+/* File > Open model as the page sends it (W853): the menu item opens the file picker at once, with no form in front (the start screen's
+   Open model does the same); the core's file ask names the file (session.open_model's path is --server's own input) */
 async function openFile(file) {
   await clickRegistry('session.open_model');
-  await cdp.eval(`document.querySelector('[data-dialog-action]').click()`);
-  await requireUntil(`s.ask?.kind === 'file' && document.activeElement.closest('[role=dialog]')`, 'Open model picker focus');
+  await requireUntil(`s.ask?.kind === 'file' && !s.commandForm && document.activeElement.closest('[role=dialog]')`, 'Open model picker focus, no form');
   await answerAsk({file});
 }
 

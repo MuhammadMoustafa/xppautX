@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {registryRows, menuTree, paletteRows, featureLack, choiceItems, rowChoiceItems, toolbarCommand} from '../src/ui/navigation';
+import {registryRows, menuTree, paletteRows, featureLack, choiceItems, rowChoiceItems, toolbarCommand, fileOnly} from '../src/ui/navigation';
 import {argumentSpec, argumentNames, argumentProblem, commandValues, formValues, argumentControl, blankArgument} from '../src/ui/argumentFields';
 import {REGISTRY_HELLO} from './hello';
 import {initialState} from '../src/store/state';
@@ -113,4 +113,18 @@ test('W778: the array plot\'s and the kinescope\'s exports are one menu_choice r
     {value: 'animated_gif', arguments: {output: 'animated_gif', file_picker: true}}, {value: 'frames', arguments: {output: 'frames', file_picker: true}}]);
   assert.deepEqual(rowChoiceItems(null, row), []);
   assert.deepEqual(rowChoiceItems(hello, undefined), []);
+});
+
+test('W853: a command whose form would ask only its file (File > Open model with its alternatives, a file-only export) goes to the picker at once; one with another argument of its own keeps its form', () => {
+  const arg = (name: string, type: string, required = false) => ({name, type, required, choices: []});
+  const open = {arguments: [arg('file', 'path'), arg('example', 'text'), arg('recent', 'integer')], groups: [{rule: 'at_most_one', arguments: ['file', 'example', 'recent']}]};
+  const fileOnlyRow = {arguments: [arg('file', 'file', true)]};
+  const withFormat = {arguments: [arg('format', 'choice', true), arg('file', 'file')]};
+  const panelled = {arguments: [arg('file', 'file', true)], panel: 'plot'};
+  const none = {arguments: []};
+  assert.equal(fileOnly(open as unknown as CommandRow), true);
+  assert.equal(fileOnly(fileOnlyRow as unknown as CommandRow), true);
+  assert.equal(fileOnly(withFormat as unknown as CommandRow), false, 'a format is a second argument of its own');
+  assert.equal(fileOnly(panelled as unknown as CommandRow), false, 'a panel is a form of its own');
+  assert.equal(fileOnly(none as unknown as CommandRow), false, 'no file argument');
 });

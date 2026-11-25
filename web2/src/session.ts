@@ -1,6 +1,6 @@
 import {splitDrawn} from './store/splitView';
 import {panelSpec, toolbarCommand} from './ui/navigation';
-import {registryRows} from './ui/navigation';
+import {fileOnly, registryRows} from './ui/navigation';
 /* The session: connects a transport to the store and is the one place that
    sends commands. Components call its methods, never the transport. */
 import {nativeFileDialog, nativeFileRequest, offerDownload, pickStem, releaseFolder} from './pickers';
@@ -428,6 +428,7 @@ export class Session {
       this.send({cmd: id, window:this.store.getState().plots.active});
     } else if (id === 'settings.open') this.openSettings('general');
     else if (id === 'keymap.edit') this.openSettings('keymap'); else if (row.panel && !row.arguments?.some(a => a.option) && !row.panel.endsWith('+')) this.openOptions(panelSpec(row.panel)!.group);
+    else if (fileOnly(row)) this.chooseFile(id, values);
     else if (row.arguments?.length) this.store.dispatch({type: 'commandForm', form: {id, values, fixed}});
     else this.send({cmd: id});
   }
@@ -1204,8 +1205,8 @@ export class Session {
     this.chooseFile('session.open_model');
   }
 
-  /** a button of its own for a command whose argument is a file: the core asks for the file through the
-      picker, as the form's Choose file button does (CommandForm.tsx), without the form's extra step */
+  /** a command whose form would ask only its file (navigation.ts fileOnly), from the start screen, the menu, a key or the palette: the core
+      asks for the file through the picker, as the form's Choose file button does (CommandForm.tsx), without the form's extra step */
   private chooseFile(id: string, values: Record<string, unknown> = {}): void {
     const row = registryRows(this.store.getState().hello).find(row => row.id === id);
     this.send(row?.file_mode ? {cmd: id, ...values, file_picker: true} : {cmd: id, ...values});

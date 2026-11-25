@@ -22,6 +22,16 @@ export function featureLack(hello: HelloEvent | null, feature: string | undefine
   const found = feature ? hello?.model_features.find(f => f.name === feature) : undefined;
   return found && !found.present ? found.needs : null;
 }
+/** whether a row's form would ask nothing but its file: the file is its only argument, or the file is one of the alternatives of its
+    at-most-one group and the rest of the arguments are the others (File > Open model's example and recent). Such a command goes to
+    the file picker at once, as the start screen's Open model does; the core asks for the file when none is given. */
+export function fileOnly(row: CommandRow): boolean {
+  const args = row.arguments ?? [];
+  const file = args.find(a => a.type === 'file' || a.type === 'path');
+  if (!file || row.panel) return false;
+  const others = args.filter(a => a !== file).map(a => a.name);
+  return others.length === 0 || (row.groups ?? []).some(g => g.rule === 'at_most_one' && g.arguments.includes(file.name) && others.every(n => g.arguments.includes(n)));
+}
 /** the registry row of command `id`: its label, description and menu place are what every control for it shows */
 export function commandRow(hello: HelloEvent | null, id: string): CommandRow | undefined {
   return registryRows(hello).find(row => row.id === id);
