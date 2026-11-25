@@ -23,7 +23,6 @@
 #include "xpp_ui.h"
 #include "expr_program.h"
 #include "diagram.h"
-#include "expr.h"
 #include "xpp_log.h"
 
 namespace xpp {
@@ -299,8 +298,7 @@ Result<> autox_new_per(AutoxParts s) /* same for extending periodic  */
     std::vector<int> copies;
     for(const DIAGRAM &held:s.diagram->points){
       const int ibr=std::abs(held.ibr);
-      if(held.from!=label||held.calc!=PE1||held.job==0||ibr==0||std::find(copies.begin(),copies.end(),ibr)!=copies.end())continue;
-      copies.push_back(ibr);
+      if(held.from==label&&held.calc==PE1&&held.job!=0&&ibr!=0&&!std::ranges::contains(copies,ibr))copies.push_back(ibr);
     }
     if(!copies.empty()){
       std::string named;
@@ -309,7 +307,7 @@ Result<> autox_new_per(AutoxParts s) /* same for extending periodic  */
         named+=(named.empty()?"":", ")+std::to_string(ibr);
       }
       redraw_diagram(s);
-      const std::string why=xpp::format("the follow-all copy of branch {} (the cycles of the Hopf point labelled {}, which a follow-all job traced) is replaced by this run, which stores its own cycles in its place",
+      const std::string why=xpp::format("branch {}, the cycles of the Hopf point labelled {} that follow all branches traced, is replaced by this run's own",
                                         named,label);
       xpp::log(XPP_LOG_WARN,"autoX: {}",why);
       s.autox_state->stop.notes.push_back(why);
