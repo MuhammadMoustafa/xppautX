@@ -177,6 +177,15 @@ let downloads; /* shared downloads folder for all sections (set by main) */
 let browserPort; /* the browser's DevTools port, for the pages it opens by itself (a pop-out) */
 /* the page driver the walkthrough shares (tools/pagedriver.mjs): the waits, keys, menu, file answer and theme are its code */
 const {S, until, requireUntil, rendered, key, exists, clickRegistry, paletteRegistry, answerAsk, setPageTheme} = createDriver(() => cdp, {verbose: !!opt.v});
+
+async function selectAll() {
+  await cdp.send('Input.dispatchKeyEvent', {type: 'rawKeyDown', key: 'a', code: 'KeyA', windowsVirtualKeyCode: 65, modifiers: 2, commands: ['selectAll']});
+  await cdp.send('Input.dispatchKeyEvent', {type: 'keyUp', key: 'a', code: 'KeyA', windowsVirtualKeyCode: 65, modifiers: 2});
+}
+
+async function runInitial() {
+  await cdp.eval(`__xpp.send({cmd: 'run.initial'})`);
+}
 /* in page expressions: `s` is the store's state, `w` its active plot window
    (store/plots.ts: series, viewport) */
 /* a command's name as the page shows it: the row's label from hello (W636), never a copy written here */
