@@ -105,7 +105,7 @@ it back. It has:
   stopped" below), and when a run ends autoX's Output says what it found on
   each branch it made and why the branch stopped ("Branch 1: fold (LP 23) at
   hfix = 0.2701; stopped at point 49: ..."), then what can be followed from the
-  points found ("From LP 23: two-parameter fold continuation"); with Follow all
+  points found ("From LP 23: a two-parameter continuation"); with Follow all
   branches on and nothing to follow it says "No branch point or Hopf point to
   follow" once;
 - the diagram's **key** lists the label types it has, spelled out with its label and mark (End of branch EP,

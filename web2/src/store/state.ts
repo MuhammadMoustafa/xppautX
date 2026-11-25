@@ -62,10 +62,10 @@ export type {LogEntry} from './log';
     prints, T27) and its handful of fixed messages
     ("Generating starting data", "Hopf point", ...) and what a run's end says
     (core/autox_run.cpp, "Branch 1: fold (LP 23) at hfix = 0.27; stopped at point 57: ...",
-    "From LP 23: two-parameter fold continuation"). Anything else stays
+    "From LP 23: a two-parameter continuation"). Anything else stays
     plain `log`; this never sees `message` `error` text (handled separately). */
 const AUTOX_ROW = /^\s*-?\d+\s+-?\d+\s+([A-Za-z]+\s+)?-?\d+(\s+-?\d+(\.\d+)?([eE][+-]?\d+)?){2,}\s*$/;
-const AUTOX_PHRASE = /BR\s+PT\s+TY\s+LAB|Generating starting data|Restart at EP label|Hopf point|Limit point|Periodic point|Max point|End point|NPARX|NCOL=|step.min|step.max|Division by Zero|Initialization Error CRASH|Restart label|Branch \d+: |From \S+ \d+: |No branch point or Hopf point to follow|Branch \d+ stopped at point \d+:/;
+const AUTOX_PHRASE = /BR\s+PT\s+TY\s+LAB|Generating starting data|Restart at EP label|Hopf point|Limit point|Periodic point|Max point|End point|NPARX|NCOL=|step.min|step.max|Division by Zero|Initialization Error CRASH|Restart label|Branch \d+: |From \S+ \d+: |No branch point or Hopf point to follow/;
 export function classifyLogText(text: string): 'log' | 'autox' {
   return AUTOX_ROW.test(text) || AUTOX_PHRASE.test(text) ? 'autox' : 'log';
 }
@@ -345,7 +345,7 @@ function addLog(state: AppState, entry: LogEntry): AppState {
 /* printed text as it arrives, one entry per line: the core's stderr comes
    in chunks cut anywhere, several lines in one or a line in several, so a
    chunk that ends a line the last entry began joins that entry, and each
-   line is classified whole ("Branch 1 stopped at point 5: pa" + "rameter
+   line is classified whole ("Branch 1: no special point found; stopped at point 5: pa" + "rameter
    ..." is one autoX line, T23) and alone (a row among other lines, T27) */
 function addLogText(state: AppState, text: string): AppState {
   let rest = text, joined: LogEntry | undefined;

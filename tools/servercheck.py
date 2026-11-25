@@ -3843,10 +3843,10 @@ def check_run_summary():
         lines = summaries[-1]['lines'] if summaries else []
         folds = [l for l in lines if re.match(r'Branch \d+: fold \(LP \d+\) at ri = ', l)]
         stopped = [l for l in folds if re.search(r'; stopped at point \d+: parameter ri reached limits\.parameter_(min|max) \(', l)]
-        follow = [l for l in lines if re.fullmatch(r'From LP \d+: two-parameter fold continuation', l)]
+        follow = [l for l in lines if re.fullmatch(r'From LP \d+: a two-parameter continuation', l)]
         check('W860: the run says what each branch found and why it stopped, in the summary and autoX\'s Output (%s)' % lines[:2],
               len(summaries) == 1 and len(folds) >= 1 and len(stopped) == len(folds), str(lines)[:400])
-        check('W860: each fold found is followed as a two-parameter fold continuation, the table autox.run and hello use (%s)' % follow,
+        check('W860: each fold found is followed as a two-parameter continuation, the table autox.run and hello use (%s)' % follow,
               len(follow) == len(folds) >= 1, str(lines)[:400])
         check('W860: follow all branches is on and nothing found starts a run from a branch point or Hopf point, so the run says so once, last',
               lines.count('No branch point or Hopf point to follow') == 1 and lines[-1] == 'No branch point or Hopf point to follow', str(lines)[-200:])

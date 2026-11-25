@@ -812,7 +812,7 @@ std::string words(std::string_view name)
 std::string found_text(const XppRunFound &f)
 {
   std::string text = xpp::format("{} ({} {})", words(f.name), f.sym, f.lab);
-  if (!f.par.empty()) text += xpp::format(" at {} = {}", f.par, xpp::number(f.x));
+  if (!f.par.empty()) text += xpp::format(" at {} = {:g}", f.par, f.x); /* six digits, as a branch end's text says a value */
   return text;
 }
 
@@ -848,14 +848,14 @@ XppRunSummary summarize_run(const AutoxParts &s, std::size_t first)
     const std::vector<const char *> kinds = autox_run_kind_list(autox_run_row_for(g).kinds);
     if (kinds.empty()) continue;
     XppRunFollow follow{f.sym, f.lab, {}};
-    std::string kinds_text; /* "two-parameter", or "equilibrium or two-parameter" */
-    for (const char *k : kinds) {
-      follow.kinds.emplace_back(k);
-      std::string name(k);
+    std::string kinds_text; /* "two-parameter", or "periodic, equilibrium or two-parameter" */
+    for (std::size_t k = 0; k < kinds.size(); ++k) {
+      follow.kinds.emplace_back(kinds[k]);
+      std::string name(kinds[k]);
       std::replace(name.begin(), name.end(), '_', '-');
-      kinds_text += (kinds_text.empty() ? "" : " or ") + name;
+      kinds_text += (k == 0 ? "" : k + 1 == kinds.size() ? " or " : ", ") + name;
     }
-    out.lines.push_back(xpp::format("From {} {}: {} {} continuation", f.sym, f.lab, kinds_text, words(autox_run_row_for(g).point)));
+    out.lines.push_back(xpp::format("From {} {}: a {} continuation", f.sym, f.lab, kinds_text));
     out.follow.push_back(std::move(follow));
   }
   /* the branch ends of this run: each branch's last end says why it stopped */

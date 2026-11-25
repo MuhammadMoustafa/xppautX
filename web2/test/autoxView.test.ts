@@ -86,19 +86,17 @@ test('T23: an ended run says why its last branch ended, from autoxinfo stop', ()
   s = act(s, {type: 'run', op: 'start', at: 3000});
   s = act(s, {type: 'run', op: 'end', at: 3500});
   assert.equal(runStatus(s.diagram.run, activeView(s.diagram).points, activeView(s.diagram).labels, 4000, flags, s.diagram.stop).text, 'Done');
-  /* the line the core writes in Output is autoX's */
-  assert.equal(classifyLogText('Branch 1 stopped at point 5: parameter iapp reached Par Max (0.3)\n'), 'autox');
   /* W860: a run's end: what each branch found and why it stopped, what can be followed from it */
   assert.equal(classifyLogText('Branch 1: fold (LP 23) at hfix = 0.27; stopped at point 57: hfix reached limits.parameter_min (0)\n'), 'autox');
-  assert.equal(classifyLogText('From LP 23: two-parameter fold continuation\n'), 'autox');
+  assert.equal(classifyLogText('From LP 23: a two-parameter continuation\n'), 'autox');
   assert.equal(classifyLogText('No branch point or Hopf point to follow\n'), 'autox');
   /* ... also when the core's stderr cuts it in two: the line joins, whole */
-  let t = ev(READY, {ev: 'session.log', text: 'Branch 1 stopped at point 5: pa'});
+  let t = ev(READY, {ev: 'session.log', text: 'Branch 1: no special point found; stopped at point 5: pa'});
   t = ev(t, {ev: 'session.log', text: 'rameter iapp reached Par Max (0.3)\nnvar=2\n'});
-  assert.deepEqual(logEntries(t.log).map(l => [l.kind, l.text]), [['autox', 'Branch 1 stopped at point 5: parameter iapp reached Par Max (0.3)\n'],
+  assert.deepEqual(logEntries(t.log).map(l => [l.kind, l.text]), [['autox', 'Branch 1: no special point found; stopped at point 5: parameter iapp reached Par Max (0.3)\n'],
     ['log', 'nvar=2\n']]);
-  t = ev(READY, {ev: 'session.log', text: 'Branch 1 st'});
-  t = ev(t, {ev: 'session.log', text: 'opped at point 5: by the user (Stop)\n'});
+  t = ev(READY, {ev: 'session.log', text: 'Bra'});
+  t = ev(t, {ev: 'session.log', text: 'nch 1: no special point found; stopped at point 5: by the user (Stop)\n'});
   assert.deepEqual(logEntries(t.log).map(l => l.kind), ['autox']);
 });
 

@@ -66,8 +66,6 @@ struct AutoxNoConvergence {
     double pivot = NAN;
 };
 
-/* what autoX runs recorded: one run's (AutoxRun::stop), or the last runs'
-   a Session shows (AutoxState::stop) */
 /* one branch end of a run: its reason's key and its text (the last branch end's, as last_*), where it was */
 struct AutoxBranchEnd {
     int why;
@@ -76,6 +74,8 @@ struct AutoxBranchEnd {
     std::string text;
 };
 
+/* what autoX runs recorded: one run's (AutoxRun::stop), or the last runs'
+   a Session shows (AutoxState::stop) */
 struct AutoxStop {
     /* the last "No convergence" NOTE */
     AutoxNoConvergence noconv;
