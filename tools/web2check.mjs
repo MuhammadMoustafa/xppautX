@@ -3627,15 +3627,8 @@ async function exportShots(dir) {
   await until("!!s.commandForm || (s.ask && s.ask.kind === 'file')", 'the data export form or its file question');
   await shoot('data-export');
   await closeForm();
-  /* an export with only a file: direction_field.export */
+  /* an export with only a file: direction_field.export saves at once, with no form in front (W853) */
   await clickRegistry('direction_field.export');
-  await requireUntil(`document.querySelector('.registry-form')`, 'the direction field export form');
-  await shoot('direction-field-export');
-  await closeForm();
-  /* the save dialog as it opens: the page's own file question, from the same export */
-  await clickRegistry('direction_field.export');
-  await requireUntil(`document.querySelector('.registry-form')`, 'the direction field export form');
-  await cdp.eval(`(() => { const b = document.querySelector('.registry-form button[type=submit]'); if (b && !b.disabled) b.click(); })()`);
   await until("s.toasts.some(t => t.text.endsWith(' downloaded'))", 'the download notice', 30000);
   await shoot('download');
   await rendered();
@@ -3664,9 +3657,6 @@ async function exportShots(dir) {
   await until(`s.player && s.player.open`, 'the recording open', 30000);
   await cdp.eval('document.activeElement && document.activeElement.blur()'); /* a focused note box would send its note back at the menu's click */
   await clickRegistry('direction_field.export');
-  await until("!!s.commandForm || (s.ask && s.ask.kind === 'file')", 'the direction field export form or its file question during Play');
-  await shoot('play-direction-field-export');
-  await cdp.eval(`(() => { const b = document.querySelector('.registry-form button[type=submit]'); if (b && !b.disabled) b.click(); })()`);
   await until("s.toasts.some(t => t.text.endsWith(' downloaded'))", 'the download notice during Play', 30000);
   await shoot('play-download');
   /* W794: Export > Several in the desktop window (the picker stubs stand in for its host bindings; the window before had Folder and Choose…) */
@@ -3691,10 +3681,9 @@ async function browserSaveCheck(dir) {
     return found;
   };
   await until('s.hello && !s.busy', 'hello');
-  await clickRegistry('session.export_info');
-  await requireUntil(`!!s.commandForm`, 'the export form');
+  /* W853: the item goes to the save with no form in front */
   const since = downloadMark(downloadedPath('lecar.txt'));
-  await submitCommand();
+  await clickRegistry('session.export_info');
   await until(`s.toasts.some(t => t.text.endsWith(' downloaded'))`, 'the download notice', 30000);
   const text = await S("s.toasts.map(t => t.text).find(t => t.endsWith(' downloaded')) || ''");
   check('W786: a browser save downloads under the default name, and the notice names it', text === 'lecar.txt downloaded' && !!(await cdp.waitDownload(downloadedPath('lecar.txt'), since)), String(text));
