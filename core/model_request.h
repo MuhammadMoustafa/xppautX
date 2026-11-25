@@ -32,6 +32,7 @@ struct Manifest {
 struct SavedSession {
     std::string file;           /* the .snapx */
     std::uint64_t clean = 0;    /* the values' fingerprint when it was saved, opened or loaded */
+    int diagram_points = 0;     /* the autoX diagram's points then: a run's points the file does not hold make the session unsaved */
 };
 
 /* A session archive carries its saved model and all session members.

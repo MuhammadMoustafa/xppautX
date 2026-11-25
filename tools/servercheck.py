@@ -2899,6 +2899,58 @@ def check_export_several():
     finally:
         s.close()
 
+def check_saved_session_leave():
+    """W880 (#962): a session saved, or opened from a file, with nothing changed since is not asked to be saved again when another
+    model opens (xpp_session_has_unsaved). A change after the save is asked about, and so is an autoX diagram run after it (the
+    file does not hold its points), and a session never saved is asked about as before."""
+    source = autoxcompare.ROOT / 'examples/ode'
+
+    def finished(snd, col, cmd, **args):
+        snd(cmd=cmd, **args)
+        col(lambda e: e.get('ev') == 'done')
+
+    def opened_asks(prepare):
+        """whether File > Open model asks the leave question once `prepare` has set the session up; the question is answered
+        Don't save, so the model opens and the command ends"""
+        proc, run_dir, snd, col, _ = launch_server(ode=str(source / 'lecar.odex'))
+        try:
+            shutil.copy(str(source / 'amari.ode'), run_dir)
+            col(lambda e: e.get('ev') == 'done')  # the model the server loaded at start
+            prepare(snd, col)
+            snd(cmd='session.open_model', file='amari.ode')
+            asked = False
+            while True:
+                evs, end = col(lambda e: e.get('ev') in ('done', 'ask'))
+                asked = asked or any(e.get('ev') == 'ask' for e in evs + [end or {}])
+                if end is None or end['ev'] == 'done':
+                    return asked, end or {}
+                snd(cmd='answer', id=end['id'], key='d')
+        finally:
+            stop_server(proc, run_dir, snd)
+
+    def saved(snd, col):
+        finished(snd, col, 'session.save_as', file='first.snapx', data=False)
+
+    def saved_then_changed(snd, col):
+        saved(snd, col)
+        finished(snd, col, 'value.set_parameters', values={'iapp': 0.1})
+
+    def saved_then_run(snd, col):
+        saved(snd, col)
+        finished(snd, col, 'autox.open')
+        finished(snd, col, 'autox.run', kind='equilibrium')
+
+    asked, end = opened_asks(saved)
+    check('W880: a session saved with nothing changed since is not asked to be saved again when a model opens',
+          not asked and end.get('status') == 'ok', str((asked, end)))
+    asked, end = opened_asks(saved_then_changed)
+    check('W880: a change after the save is still asked about when a model opens', asked and end.get('status') == 'ok', str((asked, end)))
+    asked, end = opened_asks(saved_then_run)
+    check('W880: an autoX run after the save is still asked about (its diagram is not in the saved file)', asked and end.get('status') == 'ok', str((asked, end)))
+    asked, end = opened_asks(lambda snd, col: None)
+    check('W880: a session never saved is asked about when a model opens, as before', asked and end.get('status') == 'ok', str((asked, end)))
+
+
 def check_equilibrium_exports():
     """W522: explicit side filenames and one error value, including a refused derived destination."""
     s = Server(args.server, 'tools/models/equilibrium_registry.odex')
@@ -3940,7 +3992,7 @@ def check_run_summary():
         s.close()
 
 
-INDEPENDENT_SECTIONS = {'replace': check_replace_answer, 'export': check_export_several, 'options': check_options_panels, 'atomic': check_atomic_commands, 'equilibria': check_equilibrium_settings, 'registry': check_registry, 'branchjobs': check_autox_branch_jobs, 'session': check_session_commands, 'data': check_data_value_set, 'kinescope': check_kinescope_animation_array_plot, 'firstpoint': lambda: (check_autox_first_point_stability(), check_autox_orbit_first_points(), check_autox_not_applicable()), 'stops': lambda: (check_stops(), check_autox_stops(), check_autox_starts(), check_run_summary(), check_script_refused_run(), check_script_unknown_option(), check_script_repeated_run(), check_script_hopf_cycles_replace(), check_autox_two_parameter_starts(), check_autox_periodic_start_kind(), check_autox_frozen_time(), check_autox_registry(), check_fit_stops(), check_event_count_note(), check_autox_restart_file_stops(), check_autox_multiplier_note(), check_autox_singular_pivot())}
+INDEPENDENT_SECTIONS = {'replace': check_replace_answer, 'export': check_export_several, 'options': check_options_panels, 'atomic': check_atomic_commands, 'equilibria': check_equilibrium_settings, 'registry': check_registry, 'branchjobs': check_autox_branch_jobs, 'session': check_session_commands, 'saved': check_saved_session_leave, 'data': check_data_value_set, 'kinescope': check_kinescope_animation_array_plot, 'firstpoint': lambda: (check_autox_first_point_stability(), check_autox_orbit_first_points(), check_autox_not_applicable()), 'stops': lambda: (check_stops(), check_autox_stops(), check_autox_starts(), check_run_summary(), check_script_refused_run(), check_script_unknown_option(), check_script_repeated_run(), check_script_hopf_cycles_replace(), check_autox_two_parameter_starts(), check_autox_periodic_start_kind(), check_autox_frozen_time(), check_autox_registry(), check_fit_stops(), check_event_count_note(), check_autox_restart_file_stops(), check_autox_multiplier_note(), check_autox_singular_pivot())}
 if args.only:
     for name in args.only.split(','):
         if name not in INDEPENDENT_SECTIONS:
@@ -3953,6 +4005,7 @@ if args.only:
 check_atomic_commands()
 check_registry()
 check_session_commands()
+check_saved_session_leave()
 check_equilibrium_exports()
 check_replace_answer()
 check_data_value_set()

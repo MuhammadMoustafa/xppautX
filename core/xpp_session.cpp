@@ -908,9 +908,16 @@ bool xpp_session_changed(const xpp::Session &s)
     return values_fingerprint(s) != s.saved_session->clean;
 }
 
+bool xpp_session_has_unsaved(const xpp::Session &s)
+{
+    if (s.saved_session->file.empty()) return true;
+    return xpp_session_changed(s) || diagram_count(*s.diagram) != s.saved_session->diagram_points;
+}
+
 void xpp_session_mark_clean(xpp::Session &s)
 {
     s.saved_session->clean = values_fingerprint(s);
+    s.saved_session->diagram_points = diagram_count(*s.diagram);
 }
 
 std::optional<std::string> xpp_session_snapshot(xpp::Session &s)

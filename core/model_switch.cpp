@@ -123,7 +123,7 @@ namespace {
 /* the leave question's key: the start screen's session has nothing to save, so it may go */
 int leave_key(xpp::Session &s, const std::string &question)
 {
-  if(!s.model().loaded())return 'd';
+  if(!s.model().loaded()||!xpp_session_has_unsaved(s))return 'd';
   return xpp::TwoChoice(xpp::LEAVE_SAVE,xpp::LEAVE_DONT_SAVE,question,xpp::LEAVE_KEYS);
 }
 

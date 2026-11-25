@@ -61,6 +61,9 @@ std::string xpp_session_save_download(xpp::Session &s);
    data (the rows stored and where the run ended). A view, a window or an
    autoX diagram alone is not a change. */
 bool xpp_session_changed(const xpp::Session &s);
+/* what the leave question asks about (File > Open, Reload, Quit): the session has no file yet, or it changed since (above), or
+   its autoX diagram has points the saved file does not hold. A session saved or opened with nothing new since is not asked */
+bool xpp_session_has_unsaved(const xpp::Session &s);
 /* the session's values as they are now are the saved ones: a save, an
    open of a session file and the end of every load call it */
 void xpp_session_mark_clean(xpp::Session &s);

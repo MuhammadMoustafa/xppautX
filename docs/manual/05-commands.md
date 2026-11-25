@@ -274,7 +274,7 @@ This brings up a menu with several options. Type `Esc` to abort.
 - **Calculator**: This pops up a little window. Type formulae in the command line involving your variables and the results are displayed in the popup. Click on Quit or type `Esc` to exit.
 - **Save info**: This is like `Prt info` but saves the info to a file. It is human readable.
 - **Quit**: Asks "Quit xppautX? Save this session first?", the one
-  question every way of leaving a session asks (the desktop window's
+  question every way of leaving a session asks, unless the session was saved or opened and nothing has changed since (the desktop window's
   close box too; **open Model** and **Reload**
   ask it in their own words): **Save session** (`S`) writes the session
   first, as **Save session** does (to its remembered file with no question,
