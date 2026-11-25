@@ -127,7 +127,7 @@ nothing: an **Open model…** button (the same dialog File > Open model… shows
 it takes `.ode`, `.odex`, a `.snapx` session or a `.recx` recording) and the models you opened lately, newest first (up to
 ten, kept in `state.json` beside `settings.json`). Click one to open it; one
 whose file is gone is listed as missing and cannot be opened (move or restore
-the file, or open another). If `state.json` cannot be read, the screen says
+the file, or open another). The start screen has the title bar's theme button (light, dark, or following the system) and draws in the theme you chose. If `state.json` cannot be read, the screen says
 which line is wrong and lists none; the file is left as it is for you to fix or
 delete. Under **Examples** are the `.odex` models of the release's `examples/`
 folder, beside the program (in `xppautX.app`, `Contents/Resources/examples`).

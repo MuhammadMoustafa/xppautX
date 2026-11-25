@@ -7632,6 +7632,39 @@ async function startScreenCheck() {
   }
 }
 
+/* W875: the start screen draws in the theme in force (the user's page.theme, else the system's) and offers the title bar's
+   theme toggle. The page's own choice is light while the system asks for dark: the start screen must come out light, and
+   the toggle must switch it to dark at once. */
+async function startScreenThemeCheck() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xppweb2-start-theme-'));
+  fs.mkdirSync(path.join(dir, 'xpp-config'));
+  fs.writeFileSync(path.join(dir, 'xpp-config', 'settings.json'),
+    `${JSON.stringify({version: 4, updates: {check_for_updates: false}, page: {theme: 'light'}})}\n`);
+  const server = await startServer(bin, dir, []);
+  try {
+    await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
+    await cdp.send('Emulation.setEmulatedMedia', {features: [{name: 'prefers-color-scheme', value: 'dark'}]});
+    const {identifier} = await cdp.send('Page.addScriptToEvaluateOnNewDocument', {source: 'window.__xppFileDialog = async () => null;'});
+    await cdp.send('Page.navigate', {url: server.url});
+    const drawn = await until(`s.hello && s.hello.start && !s.busy && document.querySelector('[data-start-open]')`, 'the start screen', 30000 * SLOW);
+    const bg = `getComputedStyle(document.body).backgroundColor`;
+    check('start screen theme: the page the user chose (light) draws light while the system asks for dark, with the toggle showing it',
+      drawn && await cdp.eval(`(() => { const t = document.querySelector('.start-shell .theme-toggle');
+        return document.documentElement.dataset.theme === 'light' && ${bg} === 'rgb(247, 247, 247)'
+          && !!t && t.dataset.themeChoice === 'light'; })()`),
+      JSON.stringify(await cdp.eval(`({theme: document.documentElement.dataset.theme, bg: ${bg}})`)));
+    await cdp.eval(`document.querySelector('.start-shell .theme-toggle').click(); true`);
+    check('start screen theme: the toggle switches the page to the next theme (dark) at once, and the store has it',
+      await until(`s.theme === 'dark' && document.documentElement.dataset.theme === 'dark'`, 'dark theme')
+        && await cdp.eval(`${bg} === 'rgb(18, 18, 18)' && document.querySelector('.start-shell .theme-toggle').dataset.themeChoice === 'dark'`));
+    await cdp.send('Page.removeScriptToEvaluateOnNewDocument', {identifier});
+    await cdp.send('Emulation.setEmulatedMedia', {features: []});
+  } finally {
+    await stopServer(server);
+    fs.rmSync(dir, {recursive: true, force: true, maxRetries: 5});
+  }
+}
+
 /* W233: the bundled examples. A copy of the program with examples/ beside it lists the .odex files
    there; a click sends the example's name only (never a path) and opens the copy the core makes in the
    config folder, the start screen going. */
@@ -9104,7 +9137,7 @@ async function main() {
     if (run('errordialog')) await session(ODE, jacobianOfferCheck,
       ["w260sqrt.odex:2:1: the exact Jacobian's dX'/dX is inf at t=0 (X=0), where X' is 1: switch the Numerics' Jacobian to difference",
        "w275root.odex:3:1: autoX stopped: the exact Jacobian's dX'/dX is nan at t=0 (X=0), where X' is 0: switch the Numerics' Jacobian to difference (autoX at a=0.4999998999999997)"]);
-    if (run('startscreen')) { await startScreenCheck(); await startScreenExamplesCheck(); }
+    if (run('startscreen')) { await startScreenCheck(); await startScreenExamplesCheck(); await startScreenThemeCheck(); }
     if (run('loaderror')) {
       await loadErrorCheck();
       await session(path.resolve('tools/models/check_quirks.ode'), async () => {

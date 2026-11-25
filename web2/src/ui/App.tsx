@@ -26,7 +26,7 @@ import {PlayerStage} from './Player';
 import {RecordBar} from './RecordBar';
 import {StatusBar} from './StatusBar';
 import {useDark} from './theme';
-import {TitleBar} from './TitleBar';
+import {TitleBar, ThemeToggle} from './TitleBar';
 import {ErrorDialog} from './ErrorDialog';
 import {SettingsWindow} from './SettingsWindow';
 import {ExportSeveral} from './ExportSeveral';
@@ -84,12 +84,10 @@ function panelStyle(p: Panels, dockShown: boolean): Record<string, string> {
   return style;
 }
 
-function Shell() {
+function Shell({dark}: {dark: boolean}) {
   const session = useSession();
-  const theme = useStore(s => s.theme);
   const modelFile = useStore(s => s.hello?.file);
   const playerOpen = useStore(s => s.player.open);
-  const dark = useDark(theme);
   const panels = useStore(s => s.panels);
   /* the autoX panel takes the work area unless a split view is on screen: then its views are in the groups of the plots */
   const drawn = useSplitView() !== null;
@@ -146,6 +144,7 @@ function StartShell() {
         <MenuButton />
         <h1>xppautX</h1>
         <span class="spacer" />
+        <ThemeToggle />
         <button class="help-toggle" aria-controls="help-panel" onClick={() => session.store.dispatch({type: 'help', action: {type: 'open'}})}
           title="The manual">Help</button>
       </header>
@@ -168,8 +167,11 @@ function StartShell() {
   );
 }
 
+/* the theme is set on <html> while the page renders, for the start screen too (it has no model's panels): useDark is
+   called once here, above both shells, so neither can forget it (W875) */
 function Root() {
-  return useStore(s => !!s.hello?.start) ? <StartShell /> : <Shell />;
+  const dark = useDark(useStore(s => s.theme));
+  return useStore(s => !!s.hello?.start) ? <StartShell /> : <Shell dark={dark} />;
 }
 
 export function App({session}: {session: Session}) {

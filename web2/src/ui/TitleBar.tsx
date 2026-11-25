@@ -33,6 +33,23 @@ function ThemeIcon({theme}: {theme: Theme}) {
   );
 }
 
+/** The theme button: light, dark, then follow the system, one click each (the title bar and the start screen's bar). */
+export function ThemeToggle() {
+  const session = useSession();
+  const theme = useStore(s => s.theme);
+  const setTheme = () => {
+    const t = NEXT_THEME[theme];
+    session.store.dispatch({type: 'theme', theme: t});
+    session.setPage({theme: t});
+  };
+  return (
+    <button class="theme-toggle icon-button" onClick={setTheme} data-theme-choice={theme}
+      aria-label={`Theme: ${THEME_NAME[theme]}`} title={`Theme: ${THEME_NAME[theme]} (click for ${THEME_NAME[NEXT_THEME[theme]]})`}>
+      <ThemeIcon theme={theme} />
+    </button>
+  );
+}
+
 /** The dock's own show and hide, apart from its tabs and its ×. */
 function PanelToggle({collapsed, unavailable}: {collapsed: boolean; unavailable: boolean}) {
   const session = useSession();
@@ -49,7 +66,6 @@ export function TitleBar() {
   const {active: viewName} = useViewTabs();
   const file = useStore(s => s.hello?.file ?? '');
   const changed = useStore(s => !!s.core?.changed);
-  const theme = useStore(s => s.theme);
   const dockOpen = useStore(s => s.dockOpen);
   const tableOpen = useStore(s => s.table.open);
   const textOpen = useStore(s => s.text.open);
@@ -58,11 +74,6 @@ export function TitleBar() {
   const tab = useStore(dockTab);
   const shown = dockIsShown(panels.dockHidden, autoxShown, tab);
   const helpOpen = useStore(s => s.help.open);
-  const setTheme = () => {
-    const t = NEXT_THEME[theme];
-    session.store.dispatch({type: 'theme', theme: t});
-    session.setPage({theme: t});
-  };
   /* Data, Model and Help: the title bar's buttons (css/layout.css .title-only: hidden on a phone, where the menu bar has them) */
   const panelButtons = [
     <button key="table" class="table-toggle title-only" aria-controls="dock" aria-expanded={tableOpen}
@@ -82,10 +93,7 @@ export function TitleBar() {
       {changed && <span class="unsaved" role="img" aria-label="Unsaved changes" title="Changed since the session was loaded or saved (Ctrl+S saves)">&#9679;</span>}
       <span class="muted file" title="The view shown">{viewName}</span>
       <span class="spacer" />
-      <button class="theme-toggle icon-button" onClick={setTheme} data-theme-choice={theme}
-        aria-label={`Theme: ${THEME_NAME[theme]}`} title={`Theme: ${THEME_NAME[theme]} (click for ${THEME_NAME[NEXT_THEME[theme]]})`}>
-        <ThemeIcon theme={theme} />
-      </button>
+      <ThemeToggle />
       <PanelToggle collapsed={!shown} unavailable={autoxShown && tab === 'values'} />
       <button class="values-toggle" aria-controls="dock" aria-expanded={dockOpen}
         onClick={() => session.selectDockTab('values')}><CommandLabel command="values.open" /></button>
