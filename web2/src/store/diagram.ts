@@ -80,19 +80,18 @@ export interface AutoxJobs {
   jobs: {live: number; key: number[]; points: number}[];
 }
 
-/** `autox.summary` (W860, docs/protocol.md): a run's end, per branch what it found and why it stopped */
-export interface AutoxSummaryEvent {
-  branches?: {br: number; found?: {sym: string; lab: number; name: string; par: string | null; x: number | null}[];
-    stop?: {why: string; pt: number; text: string} | null}[];
-  follow?: {sym: string; lab: number; kinds: string[]}[];
-  lines?: string[];
-}
-
 /** one branch of the run's summary: its found special points and where it stopped (null: it did not end) */
 export interface AutoxSummaryBranch {
   br: number;
   found: {sym: string; lab: number; name: string; par: string | null; x: number | null}[];
   stop: {why: string; pt: number; text: string} | null;
+}
+
+/** `autox.summary` (W860, docs/protocol.md): a run's end, per branch what it found and why it stopped */
+export interface AutoxSummaryEvent {
+  branches?: (Pick<AutoxSummaryBranch, 'br'> & Partial<Omit<AutoxSummaryBranch, 'br'>>)[];
+  follow?: {sym: string; lab: number; kinds: string[]}[];
+  lines?: string[];
 }
 
 /** the last run's summary (W860): its branches, and the Output lines (the same text) */
