@@ -4,6 +4,8 @@
 import type {AutoxInfo, AutoxStab, DiagramAxes} from '../store/diagram';
 import {axesNames} from './axisDialog';
 import {sixSig} from '../store/values';
+import {choiceLabel} from '../store/fieldKinds';
+import {kindLabel} from './diagramModel';
 import {pointLabel, pointMark} from '../store/pointTypes';
 
 /** a strip row's value: words, or a number the page shows through ui/CutText.tsx (A14: six significant digits) */
@@ -20,8 +22,9 @@ export function infoRows(info: AutoxInfo, axes: DiagramAxes | null): [string, In
   const rows: [string, InfoValue][] = [
     ['Branch', String(info.br)],
     ['Point', String(info.pt)],
-    ['Type', `${info.stable ? 'Stable' : 'Unstable'} ${info.periodic ? 'periodic orbit' : 'steady state'}`],
+    ['Type', info.calc ? kindLabel(info.calc, false) : `${choiceLabel(info.stability)} ${info.periodic ? 'periodic orbit' : 'steady state'}`],
   ];
+  if (info.stability === 'not_applicable') rows.push(['Stability', choiceLabel(info.stability)]);
   if (info.sym || info.lab)
     rows.push(['Label', `${info.sym ? pointMark(info.sym) + ' ' : ''}${info.lab}${pointLabel(info.sym) ? ` (${pointLabel(info.sym)})` : ''}`]);
 

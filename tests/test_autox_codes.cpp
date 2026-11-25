@@ -209,6 +209,8 @@ TEST_CASE("test_autox_codes")
     CHECK(xpp::diagram_point_type_code(xpp::STABLE_EQ) == 1 && xpp::diagram_point_type_code(xpp::UNSTABLE_PERIODIC) == 4);
     CHECK(xpp::point_is_stable(xpp::STABLE_PERIODIC) && !xpp::point_is_stable(xpp::UNSTABLE_EQ));
     CHECK(xpp::point_is_periodic(xpp::UNSTABLE_PERIODIC) && !xpp::point_is_periodic(xpp::STABLE_EQ));
+    CHECK(xpp::point_stability_name(xpp::STABLE_PERIODIC) == "stable" && xpp::point_stability_name(xpp::UNSTABLE_EQ) == "unstable");
+    CHECK(xpp::point_stability_name(xpp::NOT_APPLICABLE) == "not_applicable" && !xpp::point_is_stable(xpp::NOT_APPLICABLE));
 
     /* fort.8's header: its point type is decoded as it is read, an unknown one is a bad header */
     {

@@ -240,6 +240,7 @@ void diag_run(const xpp::Session &s, std::string &b, const std::vector<XppDiagPo
                p->draw, xpp::quoted_color(p->color), p->lw);
     buf_format(b, ",\"stable\":{},\"periodic\":{}", xpp::point_is_stable(p->type), xpp::point_is_periodic(p->type));
     if (p->flag2!=no_calculation) buf_format(b, ",\"f2\":{:d}", static_cast<int>(p->flag2));
+    if (xpp::calc_has_no_stability(p->calc)) buf_format(b, ",\"calc\":\"{}\"", xpp::autox_calculation_name(p->calc));
     if (p->newseg) BUF_LIT(b, ",\"new\":1");
     if (p->from) buf_format(b, ",\"from\":{:d}", p->from);
     if (p->job) buf_format(b, ",\"job\":{:d}", p->job);

@@ -26,8 +26,22 @@ namespace xpp {
    or not. The events carry stable and periodic flags beside it. It lives
    here, not in diagram.h, so that the headers a point's type crosses
    (autox_evd.h, autox_nox.h, autox_data.h, xpp_ui.h) can name it. */
-enum DiagramPointType : int { STABLE_EQ = 1, UNSTABLE_EQ = 2, STABLE_PERIODIC = 3, UNSTABLE_PERIODIC = 4 };
+/* NOT_APPLICABLE: a point of a boundary value or a homoclinic branch, whose
+   stability is not defined (W866, #947): neither stable nor unstable, drawn
+   as a thin steady line. AUTO-07p writes such a point's sign +, as unstable;
+   our outputs do not. */
+enum DiagramPointType : int { STABLE_EQ = 1, UNSTABLE_EQ = 2, STABLE_PERIODIC = 3, UNSTABLE_PERIODIC = 4, NOT_APPLICABLE = 5 };
 constexpr bool point_is_stable(DiagramPointType type) { return type == STABLE_EQ || type == STABLE_PERIODIC; }
+/* the stability a point carries, named as the protocol, the CSV and the page write it */
+constexpr std::string_view point_stability_name(DiagramPointType type)
+{
+    switch (type) {
+    case STABLE_EQ: case STABLE_PERIODIC: return "stable";
+    case UNSTABLE_EQ: case UNSTABLE_PERIODIC: return "unstable";
+    case NOT_APPLICABLE: return "not_applicable";
+    }
+    return "not_applicable";
+}
 constexpr bool point_is_periodic(DiagramPointType type) { return type == STABLE_PERIODIC || type == UNSTABLE_PERIODIC; }
 /* the protocol's `ty`/`type` number (docs/protocol.md): the explicit encoding of the type */
 constexpr int diagram_point_type_code(DiagramPointType type) { return static_cast<int>(type); }
@@ -134,6 +148,8 @@ constexpr std::optional<AutoxCalculation> autox_calculation_from_code(int code) 
     if(code<0 || code>=static_cast<int>(autox_calculation_names.size())) return std::nullopt;
     return static_cast<AutoxCalculation>(code);
 }
+/* a steady point of a boundary value or homoclinic branch has no stability (W866, #947): its calc names the branch kind */
+constexpr bool calc_has_no_stability(AutoxCalculation calc) { return calc == BV1 || calc == HO2; }
 constexpr std::optional<AutoxCalculation> autox_calculation_from_name(std::string_view name) {
     return xpp::enum_from_name<AutoxCalculation>(autox_calculation_names,name);
 }

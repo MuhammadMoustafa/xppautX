@@ -185,7 +185,7 @@ void redraw_diagram(xpp::AutoxParts s)
   xpp::autox_data_hold(s,1); /* plotting again leaves the strip and circle as they were */
   for(xpp::DIAGRAM &point:s.diagram->points){
     xpp::DIAGRAM *d=&point;
-    type=xpp::get_bif_type(d->ibr,d->ntot);
+    type=xpp::get_bif_type(*d);
  
     if(std::abs(d->ntot)==1)flag=0; /* a stable first point is signed -1 (W858, #939) */
     else flag=1;
@@ -241,7 +241,7 @@ xpp::Result<> write_info_out(xpp::AutoxParts s, const std::optional<std::string>
   return export_text(s,file,"Write all info","allinfo",[&](std::string &out){
     for(xpp::DIAGRAM &point:s.diagram->points){
       xpp::DIAGRAM *d=&point;
-      const xpp::DiagramPointType type=xpp::get_bif_type(d->ibr,d->ntot);
+      const xpp::DiagramPointType type=xpp::get_bif_type(*d);
       const xpp::AutoxAxis icp1=d->icp1,icp2=d->icp2;
       auto parameters=diagram_parameters(*d);
       const double *par=parameters.data();
@@ -321,7 +321,7 @@ xpp::Result<> write_pts(xpp::AutoxParts s, const std::optional<std::string> &fil
   return export_text(s,file,"Write points","diagram",[&](std::string &out){
     for(xpp::DIAGRAM &point:s.diagram->points){
       xpp::DIAGRAM *d=&point;
-      const xpp::DiagramPointType type=xpp::get_bif_type(d->ibr,d->ntot);
+      const xpp::DiagramPointType type=xpp::get_bif_type(*d);
       const xpp::AutoxAxis icp1=d->icp1,icp2=d->icp2;
       auto parameters=diagram_parameters(*d);
       const double *par=parameters.data();

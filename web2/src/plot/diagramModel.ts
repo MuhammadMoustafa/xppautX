@@ -19,22 +19,53 @@
    (loaded from a file) a periodic branch whose first point lies at a Hopf
    label's parameter (within a small part of the axes' width) and whose
    max..min spans the label's value is taken to start there. */
-import {hasLivePoints, type DiagramAxes, type DiagramLabel, type DiagramPoints} from '../store/diagram';
+import {hasLivePoints, KIND_CALCS, type DiagramAxes, type DiagramLabel, type DiagramPoints} from '../store/diagram';
 import type {Range} from '../store/state';
 import type {CoreColor} from '../protocol/types';
 import type {Ranges} from './viewmath';
 import {pointLabel} from '../store/pointTypes';
+import {choiceLabel} from '../store/fieldKinds';
 import {jobKeyText} from './autoxStatus';
 
 export type CurveKind = 'steady' | 'periodic' | 'two-parameter';
 
+/** the type a point of a boundary value or homoclinic branch has: no stability (the core's ty 5, W866) */
+export const NOT_APPLICABLE_TY = 5;
+
+/** a point's stability as the core names it (`stable`, `unstable`, `not_applicable`): from its ty and its stable flag */
+export function stabilityName(ty: number, stable: boolean): string {
+  return ty === NOT_APPLICABLE_TY ? 'not_applicable' : stable ? 'stable' : 'unstable';
+}
+
+/** a core name in words, lowercase: `not applicable` for `not_applicable`, `boundary value` for `boundary_value` */
+export function nameWords(name: string): string {
+  return name.replace(/_/g, ' ');
+}
+
+/** the nouns of a branch kind with no stability: its one and its many (the kind's label is choiceLabel of its name) */
+const KIND_NOUNS: Record<string, [string, string]> = {boundary_value: ['solution', 'solutions'], homoclinic: ['orbit', 'orbits']};
+
+/** a branch kind in words: `Boundary value solution` (one) or `Boundary value solutions` (many), `Homoclinic orbits` (W866) */
+export function kindLabel(calc: string, many: boolean): string {
+  return `${choiceLabel(calc)} ${KIND_NOUNS[calc][many ? 1 : 0]}`;
+}
+
+/** a branch kind in words, lowercase, for a point (`boundary value solution`) */
+export function kindWords(calc: string): string {
+  return `${nameWords(calc)} ${KIND_NOUNS[calc][0]}`;
+}
+
 export interface DiagramCurve {
   branch: number;
-  /** the store's ty: 1 stable steady state, 2 unstable steady, 3 stable periodic, 4 unstable periodic (the core's) */
+  /** the store's ty: 1 stable steady state, 2 unstable steady, 3 stable periodic, 4 unstable periodic, 5 not applicable (the core's) */
   type: number;
   f2: number;
   kind: CurveKind;
   stable: boolean;
+  /** the stability as the core names it (`stableName`) */
+  stability: string;
+  /** the branch kind of a boundary value or homoclinic point, '' for the others (W866) */
+  calc: string;
   /** the values it draws: y (the maximum for hi and lo) or y2 (the minimum) */
   which: 'y' | 'y2';
   /** the color of the run as the core says it */
@@ -132,7 +163,10 @@ function curve(p: DiagramPoints, s: number, verts: number[], which: 'y' | 'y2', 
     idx[k] = v;
   });
   const width = kind === 'steady' ? (p.lw[s] >= 2 ? 2.25 : 1.25) : stable ? 1.75 : 1.25;
-  return {branch: p.br[s], type: ty, f2: p.f2[s], kind, stable, which, color: p.palette[p.c[s]], width, dashed: !stable,
+  /* a point with no stability is drawn as a thin solid line: neither the stable line nor the unstable dashed one (W866) */
+  const stability = stabilityName(ty, stable);
+  return {branch: p.br[s], type: ty, f2: p.f2[s], kind, stable, stability, calc: KIND_CALCS[p.cl[s]], which, color: p.palette[p.c[s]], width,
+    dashed: stability === 'unstable',
     xs, ys, idx, hopf, live: p.lv[s]};
 }
 
@@ -222,7 +256,7 @@ export interface LegendEntry {
 export function legendEntries(curves: DiagramCurve[], jobKeys: Record<number, number[]>): {entries: LegendEntry[]; of: number[]} {
   const entries: LegendEntry[] = [], index = new Map<string, number>(), of: number[] = [];
   curves.forEach((c, i) => {
-    const stability = c.stable ? 'stable' : 'unstable';
+    const stability = nameWords(c.stability);
     let who: string, owner: string;
     if (c.live) {
       /* a job is listed before its first point is sent (autox_jobs.cpp announces a job's start before it computes), but a page
@@ -234,12 +268,12 @@ export function legendEntries(curves: DiagramCurve[], jobKeys: Record<number, nu
       who = `branch:${c.branch}`;
       owner = `Branch ${c.branch}`;
     }
-    const key = `${who}:${stability}:${c.kind}`;
+    const key = `${who}:${stability}:${c.kind}${c.calc ? `:${c.calc}` : ''}`;
     let e = index.get(key);
     if (e === undefined) {
       e = entries.length;
       index.set(key, e);
-      entries.push({key, name: `${owner} · ${stability} ${c.kind}`, curves: [], color: c.color});
+      entries.push({key, name: `${owner} · ${c.calc ? nameWords(c.calc) : `${stability} ${c.kind}`}`, curves: [], color: c.color});
     }
     entries[e].curves.push(i);
     of.push(e);
@@ -433,7 +467,8 @@ const SYMBOL_HELP: Record<string, string> = {
 /** what a point is, in words: its kind */
 export function pointKind(p: DiagramPoints, i: number): string {
   return p.f2[i] ? `${CURVES[p.f2[i]] || 'two-parameter'} curve`
-    : `${p.st[i] ? 'stable' : 'unstable'} ${p.pe[i] ? 'periodic orbit' : 'steady state'}`;
+    : KIND_CALCS[p.cl[i]] ? kindWords(KIND_CALCS[p.cl[i]])
+    : `${nameWords(stabilityName(p.ty[i], p.st[i] === 1))} ${p.pe[i] ? 'periodic orbit' : 'steady state'}`;
 }
 
 export function symbolHelp(sym: string): string {

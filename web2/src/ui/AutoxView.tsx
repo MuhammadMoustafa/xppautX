@@ -53,13 +53,14 @@ import {openPanel} from './hotkeys';
 import {TraceDialog} from './TraceDialog';
 import {ShownName, ShownNumber} from './CutText';
 import {sixSig} from '../store/values';
+import {choiceLabel} from '../store/fieldKinds';
 import {useEffect, useLayoutEffect, useMemo, useRef, useState} from 'preact/hooks';
 import {DiagramChart, setDiagramChart} from '../plot/diagramChart';
 import {pointLabel, pointMark} from '../store/pointTypes';
 import {cssColor} from '../plot/colors';
 import {stopPoint} from '../plot/autoxStatus';
 import {
-  buildDiagramModel, carryAppearance, describePoint, grabStep, labelShape, LABEL_GLYPH, labelTypes, legendEntries, stepLabel,
+  buildDiagramModel, carryAppearance, describePoint, grabStep, kindLabel, labelShape, LABEL_GLYPH, labelTypes, legendEntries, stepLabel,
   symbolHelp, vertexOf, type DiagramModel,
 } from '../plot/diagramModel';
 import {attachGestures, type PickSink} from '../plot/interactions';
@@ -177,7 +178,8 @@ function legendOf(m: DiagramModel): {text: string; color: string; dashed: boolea
   const seen = new Map<string, {text: string; color: string; dashed: boolean}>();
   for (const c of m.curves) {
     const text = c.kind === 'two-parameter' ? 'Two-parameter curve'
-      : `${c.stable ? 'Stable' : 'Unstable'} ${c.kind === 'periodic' ? 'periodic orbits (max, min)' : 'steady states'}`;
+      : c.calc ? kindLabel(c.calc, true)
+      : `${choiceLabel(c.stability)} ${c.kind === 'periodic' ? 'periodic orbits (max, min)' : 'steady states'}`;
     const key = `${text}/${c.color}`;
     if (!seen.has(key)) seen.set(key, {text, color: c.color, dashed: c.dashed});
   }

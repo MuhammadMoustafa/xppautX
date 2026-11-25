@@ -6,7 +6,7 @@ import {test} from 'node:test';
 import {circlePoints, complexText, infoRows, stabComputed, stabilitySummary} from '../src/plot/autoxInfo';
 import {
   buildDiagramModel, describePoint, fitRanges, grabStep, hopfOf, nearestVertex, stepLabel, vertexOf,
-  carryAppearance, labelShape, labelTypes, legendEntries, symbolHelp,
+  carryAppearance, kindLabel, labelShape, labelTypes, legendEntries, nameWords, stabilityName, symbolHelp,
 } from '../src/plot/diagramModel';
 import {pointLabel} from '../src/store/pointTypes';
 import {activeView, initialDiagram, pointCount, type DiagramRun} from '../src/store/diagram';
@@ -239,7 +239,7 @@ test('stepping from label to label, and the readout of a point', () => {
 
 /* ---- T11b: autoxinfo, the grab, the label a branch started from ---- */
 
-const hbInfo = {point: 4, br: 1, pt: 5, type: 2, stable: false, periodic: false, sym: 'hopf', lab: 2, jac: 'difference', par: [{name: 'iapp', value: 0.26}, {name: 'phi', value: 0.2}],
+const hbInfo = {point: 4, br: 1, pt: 5, type: 2, stable: false, stability: 'unstable', periodic: false, sym: 'hopf', lab: 2, jac: 'difference', par: [{name: 'iapp', value: 0.26}, {name: 'phi', value: 0.2}],
   norm: 0.29, var: 'V', u: -0.2, per: 14.4, x: 0.26, y: -0.2, y2: -0.2};
 const hbStab = {periodic: 0, circle: [[0.9, 0.42], [0.9, -0.42]], eig: [[6e-5, 0.435], [6e-5, -0.435]]};
 
@@ -537,4 +537,15 @@ test('W676: while jobs run, each job\'s points are one polyline however the two 
   const v = activeView(s.diagram);
   const m = buildDiagramModel(v.points, v.labels, v.axes);
   assert.deepEqual(m.curves.map(c => [c.live, [...c.idx]]), [[1, [1, 3]], [2, [0, 2, 4]]]);
+});
+
+test('a point with no stability (a boundary value or homoclinic branch, ty 5) is not_applicable in the strip and the legend, not stable or unstable (W866)', () => {
+  const info = {...hbInfo, type: 5, stable: false, stability: 'not_applicable', periodic: false, calc: 'boundary_value'};
+  assert.deepEqual(infoRows(info as never, axes).slice(2, 4), [['Type', 'Boundary value solution'], ['Stability', 'Not applicable']]);
+  assert.equal(stabilityName(5, true), 'not_applicable');
+  assert.equal(stabilityName(2, false), 'unstable');
+  assert.equal(stabilityName(1, true), 'stable');
+  assert.equal(nameWords('not_applicable'), 'not applicable');
+  assert.equal(kindLabel('boundary_value', false), 'Boundary value solution');
+  assert.equal(kindLabel('homoclinic', true), 'Homoclinic orbits');
 });

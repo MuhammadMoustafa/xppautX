@@ -45,6 +45,8 @@ void add_info(std::string &o, const AutoxDataShown &info, int point)
     o += ",\"br\":" + std::to_string(std::abs(v.ibr)) + ",\"pt\":" + std::to_string(std::abs(v.pt));
     o += ",\"type\":" + std::to_string(v.type);
     o += xpp::point_is_stable(v.type) ? ",\"stable\":true" : ",\"stable\":false";
+    o += ",\"stability\":\"" + std::string(xpp::point_stability_name(v.type)) + '"';
+    if (xpp::calc_has_no_stability(v.calc)) o += ",\"calc\":\"" + std::string(xpp::autox_calculation_name(v.calc)) + '"';
     o += xpp::point_is_periodic(v.type) ? ",\"periodic\":true,\"sym\":" : ",\"periodic\":false,\"sym\":";
     xpp::json_append_string(o, info.sym.c_str());
     o += ",\"lab\":" + std::to_string(v.lab);

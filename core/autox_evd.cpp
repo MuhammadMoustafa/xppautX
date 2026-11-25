@@ -204,10 +204,11 @@ void init_autox(const AutoxState &st, XAUTOX &run, int ndim, bool exact)
 
 /* Only unit 8,3 or q.prb is important; all others are unnecesary */
 
-DiagramPointType get_bif_type(int ibr, int ntot)
+DiagramPointType get_bif_type(const DIAGRAM &d)
 {
-  if(ibr<0&&ntot!=0)return ntot<0?STABLE_PERIODIC:UNSTABLE_PERIODIC;
-  if(ibr>0&&ntot>0)return UNSTABLE_EQ;
+  if(d.ibr<0&&d.ntot!=0)return d.ntot<0?STABLE_PERIODIC:UNSTABLE_PERIODIC;
+  if(calc_has_no_stability(d.calc))return NOT_APPLICABLE; /* autoX writes these with sign +: not a stability (W866, #947) */
+  if(d.ibr>0&&d.ntot>0)return UNSTABLE_EQ;
   return STABLE_EQ;
 }
 void autox_store_point(AutoxParts s, const DIAGRAM &p, bool new_segment)
@@ -223,12 +224,12 @@ void autox_store_point(AutoxParts s, const DIAGRAM &p, bool new_segment)
   /* plotted, and its stability shown, from the stored point, as a redraw
      or a grab shows it */
   const DIAGRAM *d=last_diagram(*s.diagram);
-  add_point(s,*d,get_bif_type(p.ibr,p.ntot),new_segment?0:1);
+  add_point(s,*d,get_bif_type(p),new_segment?0:1);
 }
 
 void autox_show_live_point(AutoxParts s, const DIAGRAM &p, int live, bool new_segment)
 {
-  add_live_point(s,p,live,get_bif_type(p.ibr,p.ntot),new_segment?0:1);
+  add_live_point(s,p,live,get_bif_type(p),new_segment?0:1);
 }
 
 bool autox_start_points_away(double value, double rl0, double rl1, double ds)
@@ -267,6 +268,7 @@ void addbif(iap_type *iap, rap_type *rap, std::ptrdiff_t ntots, std::ptrdiff_t i
   int n=iap->ndim;
   /* xppautX: the point's stability, or zeros: not computed (autox_stability.h) */
   xpp::DIAGRAM p{};
+  p.calc=s.autox_state->type_of_calc; /* the kind of calculation the point is stored under (get_bif_type) */
   p.size_variables(static_cast<size_t>(n));
   autox_stability_for(iap->run->stability,static_cast<int>(ibrs),static_cast<int>(ntots),p.evr,p.evi);
 

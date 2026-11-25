@@ -34,8 +34,10 @@ void autox_check_start_norm(const iap_type &iap, const rap_type &rap, double nor
 void autox_check_start_equilibrium(const iap_type &iap, const rap_type &rap, double *u, const double *par, const std::ptrdiff_t *icp);
 
 /* a point's type from autoX's signs: a negative branch is periodic, a
-   negative point stable (a zero sign: a stable steady state) */
-DiagramPointType get_bif_type(int ibr, int ntot);
+   negative point stable (a zero sign: a stable steady state); a steady point
+   of a boundary value or homoclinic branch (its calc) has no stability
+   (NOT_APPLICABLE, W866). The one owner: every reader asks it. */
+DiagramPointType get_bif_type(const DIAGRAM &d);
 /* the point p of a run into the Session's diagram, drawn: a run's addbif, and the join of jobs (autox_jobs.cpp), do it;
    new_segment: the point starts a branch (the drawing's new segment). p.from is the label its run started from, or 0 */
 void autox_store_point(AutoxParts s, const DIAGRAM &p, bool new_segment);

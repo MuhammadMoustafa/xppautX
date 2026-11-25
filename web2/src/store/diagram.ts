@@ -52,6 +52,8 @@ export interface DiagramRun {
   c: CoreColor;
   lw: number;
   f2?: number;
+  /** a boundary value or homoclinic branch's point: its branch kind (`boundary_value`, `homoclinic`), absent otherwise (W866) */
+  calc?: string;
   new?: number;
   /** The branch's complete model parameters, at its first point (W339). */
   parameters?: [string, number][];
@@ -106,9 +108,9 @@ export interface DiagramPoints {
   y2: Float64Array;
   br: Float64Array;
   pt: Float64Array;
-  /** 1 stable steady state, 2 unstable steady state, 3 stable periodic, 4 unstable periodic (the core's) */
+  /** 1 stable steady state, 2 unstable steady state, 3 stable periodic, 4 unstable periodic, 5 not applicable (the core's) */
   ty: Float64Array;
-  /** 1: stable, 0: unstable (the run's `stable`) */
+  /** 1: stable, 0: unstable or not applicable (the run's `stable`) */
   st: Float64Array;
   /** 1: a periodic orbit, 0: a steady state (the run's `periodic`) */
   pe: Float64Array;
@@ -121,6 +123,8 @@ export interface DiagramPoints {
   lw: Float64Array;
   /** two-parameter curve kind, 0 for one parameter */
   f2: Float64Array;
+  /** the branch kind of a boundary value or homoclinic point: an index into KIND_CALCS, 0 for the others (W866) */
+  cl: Float64Array;
   /** 1: no line back to the point before */
   nw: Float64Array;
   /** the label its run started from (a run's first point only), 0 otherwise */
@@ -140,6 +144,10 @@ export interface AutoxInfo {
   /** as a run's `ty`, `stable` and `periodic` */
   type: number;
   stable: boolean;
+  /** the point's stability as the core names it: stable, unstable or not_applicable (a boundary value or homoclinic branch) */
+  stability: string;
+  /** the branch kind of a boundary value or homoclinic point, as the core names it (W866) */
+  calc?: string;
   periodic: boolean;
   /** EP, LP, HB, ... or empty */
   sym: string;
@@ -284,7 +292,10 @@ export interface AutoxRun {
   stopped: boolean;
 }
 
-export const FIELDS = ['x', 'y', 'y2', 'br', 'pt', 'ty', 'st', 'pe', 'd', 'c', 'lw', 'f2', 'nw', 'fr', 'lv'] as const;
+export const FIELDS = ['x', 'y', 'y2', 'br', 'pt', 'ty', 'st', 'pe', 'd', 'c', 'lw', 'f2', 'cl', 'nw', 'fr', 'lv'] as const;
+
+/** the branch kinds that have no stability, as the core names them: index 0 is none (the points of the other kinds) */
+export const KIND_CALCS = ['', 'boundary_value', 'homoclinic'];
 export type PointField = typeof FIELDS[number];
 
 /** points over `buffers`, the first `n` of them */
@@ -415,6 +426,7 @@ function add(p: DiagramPoints, labels: DiagramLabel[], from: number, runs: Diagr
       b.c[k] = colorIndex(r.c);
       b.lw[k] = r.lw;
       b.f2[k] = r.f2 ?? 0;
+      b.cl[k] = Math.max(0, KIND_CALCS.indexOf(r.calc ?? ''));
       b.nw[k] = i === 0 && r.new ? 1 : 0;
       b.fr[k] = i === 0 && r.from ? r.from : 0;
       b.lv[k] = r.live ?? 0;

@@ -67,13 +67,13 @@ xpp::Result<bool> csv_export_diagram(const xpp::Session &s, const char *filename
        the same way */
     for (const xpp::DIAGRAM &p : s.diagram->points) {
         const xpp::DIAGRAM *d = &p;
-        xpp::DiagramPointType type = xpp::get_bif_type(d->ibr, d->ntot);
+        xpp::DiagramPointType type = xpp::get_bif_type(*d);
         const std::string type_name(xpp::autox_point_kind_name(d->itp.kind));
         double par1 = diagram_axis_value(*d,d->icp1);
         double par2 = d->icp2.is_parameter() ? diagram_axis_value(*d,d->icp2) : par1;
         /* autoX signs ibr and ntot by stability, which has its own column */
         std::vector<std::string> row = {xpp::format("{}", unsigned_of(d->ibr)), xpp::format("{}", unsigned_of(d->ntot)),
-            type_name, xpp::format("{}", d->lab), xpp::point_is_stable(type) ? "stable" : "unstable",
+            type_name, xpp::format("{}", d->lab), std::string(xpp::point_stability_name(type)),
             std::string(xpp::autox_calculation_name(d->flag2)), par_name(s, d->icp1), xpp::number(par1), par_name(s, d->icp2),
             xpp::number(par2), xpp::number(d->per), std::string(xpp::jacobian_name(d->jacobian))};
         for (int i = 0; i < m.nupar; i++) row.push_back(xpp::number(diagram_parameter(*d,i)));
@@ -92,7 +92,7 @@ xpp::Result<bool> csv_export_diagram_eigenvalues(const xpp::Session &s, const ch
     table.fields.resize(table.names.size());
     for (const xpp::DIAGRAM &p : s.diagram->points) {
         const xpp::DIAGRAM *d = &p;
-        xpp::DiagramPointType type = xpp::get_bif_type(d->ibr, d->ntot);
+        xpp::DiagramPointType type = xpp::get_bif_type(*d);
         const char *kind = xpp::point_is_periodic(type) ? "multiplier" : "eigenvalue";
         for (int i = 0; i < s.model().node; i++) {
             const std::vector<std::string> row = {xpp::format("{}", unsigned_of(d->ibr)), xpp::format("{}", unsigned_of(d->ntot)),

@@ -41,8 +41,9 @@ it back. It has:
 
 - the **diagram**, drawn from the `diagram` data event: a curve per branch
   and stability run (stable solid, unstable dashed, periodic branches as
-  their maximum and minimum), labelled points each with a shape for its
-  type (below), and the segment from a Hopf point to the first point of
+  their maximum and minimum; a boundary value or homoclinic branch, which
+  has no stability, a thin solid line), labelled points each with a shape
+  for its type (below), and the segment from a Hopf point to the first point of
   the periodic branch it started (`from`, which XPP itself leaves blank);
   it zooms (wheel) and pans (Shift+drag or the middle button) in the
   page, the core holding the zoom shown (`autoxview`), with no history (Reset zoom goes back to autoX's own axes), and
@@ -383,7 +384,7 @@ At this point, you are probably ready to run. But before doing a run, here is a 
 
 Click on “Run” to run the bifurcation. Depending on the situation, a number of menus can come up. For initial exploration, there are three choices, starting at a new steady state, periodic, or boundary value solution. If you are running the example, click on the steady-state option and a nice diagram will show up and a bunch of points will move around in the stability circle. These indicate stability: for fixed points, they represent exponentials of the eigenvalues; for periodics, the Floquet multipliers. Thus those in the circle are stable and those out of the circle are unstable. Bifurcations occur on the circle. The outer ones are “clipped” so that they will always lie in the square, thus you can keep count of them.
 
-The diagram,itself, has two different lines and two different circles. Stable fixed points are thick lines, stable periodics are solid circles, unstable fixed points are thin lines, and unstable periodics are open circles. Additionally, there are crosses occasionally dispersed with numbers associated with them. These represent “special” points that autoX wants to keep. There are several of them (web2 draws each with a shape of its own instead of a plain cross, spells each out in the key, the readout and the info strip, with its meaning as the key's tooltip):
+The diagram,itself, has two different lines and two different circles. Stable fixed points are thick lines, stable periodics are solid circles, unstable fixed points are thin lines, and unstable periodics are open circles. The points of a boundary value or a homoclinic branch have no stability (not applicable): they are thin solid lines, neither the thick stable line nor the dashed unstable one, and the info strip says the kind ("Boundary value solution") with a Stability row "Not applicable". Additionally, there are crosses occasionally dispersed with numbers associated with them. These represent “special” points that autoX wants to keep. There are several of them (web2 draws each with a shape of its own instead of a plain cross, spells each out in the key, the readout and the info strip, with its meaning as the key's tooltip):
 
 ### Following all the branches
 

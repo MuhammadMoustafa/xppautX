@@ -546,7 +546,7 @@ void show_live(Queue &q)
   }
   if(earliest){
     const DIAGRAM &point=*earliest->latest;
-    autox_data_stab(q.s,point.evr,point.evi,point_is_periodic(get_bif_type(point.ibr,point.ntot)));
+    autox_data_stab(q.s,point.evr,point.evi,point_is_periodic(get_bif_type(point)));
   }
   refreshdisplay(q.s.analysis.session);
 }

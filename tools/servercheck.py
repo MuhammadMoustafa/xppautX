@@ -1554,6 +1554,50 @@ def check_autox_first_point_stability():
         s.close()
 
 
+class DiagramTypesOfRuns:
+    """compute()'s observer: the type (`ty`) each point of a description's runs is reported with, from the `autox.diagram`
+    events of the runs (a run's points are its `pt` and the points its `x` lists, as the page reads them)."""
+    def __init__(self):
+        self.types = {}
+        self.calcs = {}
+    def created(self, s):
+        pass
+    def ready(self, s):
+        pass
+    def finished(self, s, r, events, ranges):
+        for e in events:
+            if e.get('ev') != 'autox.diagram':
+                continue
+            for run in e.get('runs', []):
+                for i in range(len(run.get('x', []))):
+                    point = (abs(run['br']), abs(run['pt']) + i)
+                    self.types[point] = run['ty']
+                    self.calcs[point] = run.get('calc')
+
+
+def check_autox_not_applicable():
+    """W866 (#947): a boundary value branch's and a homoclinic branch's points have no stability: AUTO-07p writes their sign +
+    (read as unstable), but the diagram the protocol sends reports each of them as ty 5 (not applicable, stable false), and
+    the steady states of the same run keep ty 1 to 4."""
+    for name, kinds in (('tstauto_exp', {'boundary_value'}), ('explicit_homoclinic', {'homoclinic'})):
+        d = autoxcompare.read_description(autoxcompare.BASE / (name + '.json'))
+        seen = DiagramTypesOfRuns()
+        data = autoxcompare.compute(args.server, d, 1, observer=seen)[0]
+        rows = autoxcompare.diagram_rows(data)
+        special = [r for r in rows if r['calc'] in kinds]
+        check('W866: %s has points of a %s branch' % (name, '/'.join(sorted(kinds))), len(special) > 0, str(rows[:2])[:200])
+        key = lambda r: (abs(int(r['ibr'])), abs(int(r['ntot'])))
+        types = [seen.types.get(key(r), 'missing') for r in special]
+        check('W866: every point of the %s branch is reported ty 5 (not applicable), not unstable' % name,
+              len(types) > 0 and all(t == 5 for t in types), str(types[:5]))
+        check('W866: every point of the %s branch names its kind (calc %s)' % (name, '/'.join(sorted(kinds))),
+              all(seen.calcs.get(key(r)) in kinds for r in special), str([seen.calcs.get(key(r)) for r in special][:5]))
+        steady = [r for r in rows if r['calc'] == 'equilibrium']
+        check('W866: the steady states of %s keep ty 1 to 4' % name,
+              all(seen.types.get(key(r)) in (1, 2, 3, 4) for r in steady),
+              str([seen.types.get(key(r)) for r in steady][:5]))
+
+
 def check_autox_orbit_first_points():
     """W858 (#939): a two-parameter curve of period doublings starts at the one-parameter cycle branch's PD point, the same
     orbit: its first point takes that point's Floquet multipliers, as stored (not zeros, not a second computation)."""
@@ -3571,7 +3615,7 @@ def check_options_panels():
 
 
 
-INDEPENDENT_SECTIONS = {'replace': check_replace_answer, 'export': check_export_several, 'options': check_options_panels, 'atomic': check_atomic_commands, 'equilibria': check_equilibrium_settings, 'registry': check_registry, 'branchjobs': check_autox_branch_jobs, 'session': check_session_commands, 'data': check_data_value_set, 'kinescope': check_kinescope_animation_array_plot, 'firstpoint': lambda: (check_autox_first_point_stability(), check_autox_orbit_first_points()), 'stops': lambda: (check_stops(), check_autox_stops(), check_autox_starts(), check_autox_two_parameter_starts(), check_autox_periodic_start_kind(), check_autox_registry(), check_fit_stops(), check_event_count_note(), check_autox_restart_file_stops(), check_autox_multiplier_note(), check_autox_singular_pivot())}
+INDEPENDENT_SECTIONS = {'replace': check_replace_answer, 'export': check_export_several, 'options': check_options_panels, 'atomic': check_atomic_commands, 'equilibria': check_equilibrium_settings, 'registry': check_registry, 'branchjobs': check_autox_branch_jobs, 'session': check_session_commands, 'data': check_data_value_set, 'kinescope': check_kinescope_animation_array_plot, 'firstpoint': lambda: (check_autox_first_point_stability(), check_autox_orbit_first_points(), check_autox_not_applicable()), 'stops': lambda: (check_stops(), check_autox_stops(), check_autox_starts(), check_autox_two_parameter_starts(), check_autox_periodic_start_kind(), check_autox_registry(), check_fit_stops(), check_event_count_note(), check_autox_restart_file_stops(), check_autox_multiplier_note(), check_autox_singular_pivot())}
 if args.only:
     for name in args.only.split(','):
         if name not in INDEPENDENT_SECTIONS:
@@ -13770,6 +13814,7 @@ check_autox_multiplier_note()
 check_autox_singular_pivot()
 check_autox_first_point_stability()
 check_autox_orbit_first_points()
+check_autox_not_applicable()
 
 print('server checks: %d checks, %s' % (check.checks, 'all passed' if check.failures == 0 else '%d failed' % check.failures))
 sys.exit(1 if check.failures else 0)

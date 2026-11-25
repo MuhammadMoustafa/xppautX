@@ -1978,8 +1978,9 @@ continues in), and a grab's point by its data.
 | run field | meaning |
 |---|---|
 | `br`, `pt` | branch, and the number of the run's first point (absolute values) |
-| `ty` | 1 stable steady state, 2 unstable steady state, 3 stable periodic, 4 unstable periodic (core/autox_codes.h DiagramPointType) |
-| `stable`, `periodic` | what `ty` is (W118): stable or not, a periodic orbit or a steady state; what a client reads |
+| `ty` | 1 stable steady state, 2 unstable steady state, 3 stable periodic, 4 unstable periodic, 5 not applicable: a steady point of a boundary value or homoclinic branch, which has no stability (core/autox_codes.h DiagramPointType, W866) |
+| `calc` | present only on a point of a boundary value or homoclinic branch: `boundary_value` or `homoclinic` (its branch kind, W866). Such a point has `ty` 5 and `stable` false |
+| `stable`, `periodic` | what `ty` is (W118): stable or not, a periodic orbit or a steady state; what a client reads. `stable` is false for `ty` 5 |
 | `f2` | two-parameter curve (1 limit point, 2 limit point of periodics, 3 Hopf, 4 torus, 5 branch point, 6 period doubling, 7 fixed period, 13 neutral saddle); absent for one parameter |
 | `d` | how it is drawn: 0 not at all (the next line starts from it), 1 a line back to the point before it, 2 filled circles of radius 3 at y and y2, 3 open circles |
 | `c`, `lw` | color (a color: `foreground`, `#rrggbb`, see "Colors") and line width |
@@ -2036,7 +2037,7 @@ core/autox_stop.cpp, which autox_lib1.cpp tells where it ends a branch (T23).
 |---|---|
 | `info` | the point the strip shows: the one a grab's cursor is on (the strip changes only while grabbing); `null` before a grab, and in a new autoX window |
 | `info.point` | its index in the `diagram` data (the points the client holds, the same index in every view), -1 when they do not have it (after Clear, or a load not drawn yet) |
-| `info.br`, `pt`, `type`, `sym`, `lab`, `f2` | branch and point number (positive, as in `diagram`), `type` as a run's `ty` (1 stable steady state .. 4 unstable periodic, with `stable` and `periodic` as a run's), the label's type (a point type's name, `end`, `fold`, `hopf`, ...; `info.sym` is the name, its mark and label come from hello's `point_types`), the label (0 for none), and for a two-parameter point its curve kind as `f2` |
+| `info.br`, `pt`, `type`, `calc`, `sym`, `lab`, `f2` | branch and point number (positive, as in `diagram`), `type` as a run's `ty` (1 stable steady state .. 5 not applicable, with `stable` and `periodic` as a run's), `stability` the same as a name: `stable`, `unstable` or `not_applicable` (a boundary value or homoclinic branch, W866; the CSV's `stability` column says the same), `calc` (only on those branches) the branch kind: `boundary_value` or `homoclinic`, the label's type (a point type's name, `end`, `fold`, `hopf`, ...; `info.sym` is the name, its mark and label come from hello's `point_types`), the label (0 for none), and for a two-parameter point its curve kind as `f2` |
 | `info.jac` | `difference` or `exact`: the Jacobian option of the run that computed the point (as a run's `jac`) |
 | `info.par` | the continuation parameter's `name` and `value`, and the second parameter's for a two-parameter point (the strip then shows both; for a one-parameter point it shows a blank name and 0) |
 | `info.norm`, `var`, `u`, `per` | the norm, the variable of the Axes option and its value, the period: `null` for a steady state, which has none (W858, [#939](https://github.com/MuhammadMoustafa/xppautX/issues/939)), except at a Hopf point or on a Hopf or neutral-saddle curve, where the orbit it starts has one; the strip shows the period of a periodic orbit only |

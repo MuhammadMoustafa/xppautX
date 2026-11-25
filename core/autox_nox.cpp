@@ -854,6 +854,7 @@ static xpp::Color autox_point_color(AutoxParts s, DiagramPointType type,AutoxCal
   case UNSTABLE_EQ: return s.colors.unstable_equilibrium;
   case STABLE_PERIODIC: return s.colors.stable_periodic;
   case UNSTABLE_PERIODIC: return s.colors.unstable_periodic;
+  case NOT_APPLICABLE: return xpp::foreground_color; /* no stability to color by (W866, #947) */
   }
   return xpp::foreground_color;
 }
@@ -908,6 +909,7 @@ void view_point(AutoxParts s, int v, const AUTOAX &ax, bool active, const DIAGRA
   dp.live=live;
   dp.type=type;
   dp.flag2=flag2;
+  dp.calc=d.calc;
   dp.newseg=(flg==0);
   dp.color=autox_point_color(s, type,flag2);
   dp.lw=(type==STABLE_EQ||flag2!=no_calculation)?2:1;
@@ -926,6 +928,7 @@ void view_point(AutoxParts s, int v, const AUTOAX &ax, bool active, const DIAGRA
   if(flag2!=no_calculation) /* a two-parameter point in a two-parameter view */
     type1=STABLE_EQ;
   switch(type1){
+  case NOT_APPLICABLE: /* drawn as a steady line, thin (dp.lw), as no stability is said (W866) */
   case STABLE_EQ:
   case UNSTABLE_EQ:
     if(ax.plot==AutoxProjection::period||ax.plot==AutoxProjection::frequency)break;
@@ -1012,8 +1015,9 @@ void traverse_out(AutoxParts s, DIAGRAM *d, int *ix, int *iy, int dodraw)
       ai.pt=pt;
       ai.itp=itp;
       ai.lab=lab;
-      ai.type=get_bif_type(ibr,pt);
+      ai.type=get_bif_type(*d);
       ai.flag2=flag2;
+      ai.calc=d->calc;
       ai.node=d->index;
       ai.jacobian=d->jacobian;
       ai.sym=symb;

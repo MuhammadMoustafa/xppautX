@@ -162,7 +162,7 @@ problem_function_table problem_functions(const iap_type &iap)
      a periodic branch's end point restarts a periodic run; a steady state needs a Hopf point */
   const xpp::DIAGRAM *label=iap.irs>0?diagram_of_label(s,iap.irs):nullptr;
   if(label && iap.ips==xpp::AutoxProblem::Periodic && std::abs(iap.isw)!=2 &&
-     !xpp::point_is_periodic(xpp::get_bif_type(label->ibr,label->ntot)) &&
+     !xpp::point_is_periodic(xpp::get_bif_type(*label)) &&
      !iap.itp.is(xpp::AutoxPointKind::Hopf) && !iap.itp.started_from(xpp::AutoxPointKind::Hopf))
     xpp::autox_fail(xpp::format("Restart label {} has kind {}; a periodic run needs a hopf point or a periodic orbit; select one of those points",iap.irs,named(iap.itp)));
   if (auto list = one_parameter(iap)) return *list;

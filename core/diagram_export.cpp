@@ -64,16 +64,15 @@ void add_ps_point(xpp::Session &s, const DIAGRAM &d, DiagramPointType type, int 
   dots.draw=xpp::LineDraw::points;
   dots.marker_size=3;
   switch(type1){
+  case NOT_APPLICABLE: /* no stability: a thin steady line in the foreground color (W866, #947) */
   case STABLE_EQ:
   case UNSTABLE_EQ:
     if(s.autox_state->axes().plot==AutoxProjection::period||s.autox_state->axes().plot==AutoxProjection::frequency)break;
     if(!icp1.is_parameter(s.autox_state->axes().icp1))break;
     if(flag2!=no_calculation&&!icp2.is_parameter(s.autox_state->axes().icp2))break;
-    if(type1==UNSTABLE_EQ){
-      line_style.width=1;
-      line_style.dash=xpp::LineDash::dashed;
-    }
-    xpp::set_pen(s,color_of(type1==STABLE_EQ?s.colors.stable_equilibrium:s.colors.unstable_equilibrium),line_style);
+    if(type1==UNSTABLE_EQ||type1==NOT_APPLICABLE)line_style.width=1;
+    if(type1==UNSTABLE_EQ)line_style.dash=xpp::LineDash::dashed;
+    xpp::set_pen(s,color_of(type1==STABLE_EQ?s.colors.stable_equilibrium:type1==UNSTABLE_EQ?s.colors.unstable_equilibrium:xpp::foreground_color),line_style);
     line_abs(s,static_cast<float>(x),static_cast<float>(y1),static_cast<float>(s.autox_state->bifur.lastx),static_cast<float>(s.autox_state->bifur.lasty));
     break;
   case UNSTABLE_PERIODIC:
@@ -107,7 +106,7 @@ Result<> export_autox_picture(Session &s, int fmt, const std::optional<std::stri
   if(view)autox_activate_view(xpp::autox_parts(s),*view);
   draw_export_axes(s);
   for(DIAGRAM &point:s.diagram->points){
-    const DiagramPointType type=get_bif_type(point.ibr,point.ntot);
+    const DiagramPointType type=get_bif_type(point);
     add_ps_point(s,point,type,std::abs(point.ntot)==1?0:1); /* a stable first point is signed -1 (W858, #939) */
   }
   ok_or_show(end_picture(s));

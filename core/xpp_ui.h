@@ -105,6 +105,7 @@ typedef struct XppDiagPoint {
     int lab;       /* label, 0 when none or when the label mark is not drawn */
     DiagramPointType type; /* stable eq, unstable eq, stable periodic, unstable periodic */
     AutoxCalculation flag2;     /* two-parameter curve kind, no_calculation for one parameter */
+    AutoxCalculation calc{no_calculation};  /* the branch kind, named on the page for a boundary value or homoclinic point (W866) */
     int draw;      /* 0 not drawn (only the start of the next line), 1 a line
                       back to the previous point, 2 filled circles at y1 and
                       y2, 3 open circles */

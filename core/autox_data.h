@@ -55,8 +55,9 @@ struct AutoxDataInfo {
     int ibr, pt;     /* autoX's branch and point number, signed as autoX has them */
     AutoxPointCode itp; /* autoX's point type */
     int lab;         /* autoX's label */
-    DiagramPointType type; /* stable steady state, unstable, stable periodic, unstable periodic */
+    DiagramPointType type; /* stable steady state, unstable, stable periodic, unstable periodic, not applicable */
     AutoxCalculation flag2;       /* two-parameter curve kind, no_calculation for one parameter */
+    AutoxCalculation calc{no_calculation};  /* the branch kind (W866: named for a boundary value or homoclinic point) */
     int node;        /* DIAGRAM.index of the point */
     int jacobian;    /* DIAGRAM.jacobian: how its run formed the Jacobian */
     const char *sym; /* the point type's name (autox_point_kind_name: regular, fold, hopf, ...) */
