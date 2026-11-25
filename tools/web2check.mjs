@@ -2756,12 +2756,11 @@ async function reopenedSessionPlot(dir) {
   /* Open session, as the window's File menu sends it */
   await cdp.eval(`window.__helloBefore = __xpp.state().hello; fetch('/cmd' + location.search, {method: 'POST',
     body: JSON.stringify({cmd: 'session.open', file: 'w102.snapx'})}).then(r => r.status)`);
-  await until("s.ask && s.ask.kind === 'choice'", 'save first?');
-  await answerAsk({key: 'd'});
-  check('W102: opening it loads the session (a new hello, the diagram shown) with no error',
+  /* W880: the session was just saved with nothing changed since, so opening asks no "Save first?" */
+  check('W102: opening it loads the session (a new hello, the diagram shown) with no error, and no "Save first?" for a session just saved',
     await until(`!s.busy && s.hello !== window.__helloBefore && s.diagram.open && s.diagram.shown && dv.points.x.length === ${points}`,
       'session opened', 30000 * SLOW)
-    && !(await S('__xpp.log().some(l => l.kind === "error")')),
+    && !(await S('__xpp.log().some(l => l.kind === "error")')) && !(await S("s.ask && s.ask.kind === 'choice'")),
     JSON.stringify(await S('[__xpp.log().filter(l => l.kind === "error").map(l => l.text), s.diagram.open, s.diagram.shown]')));
   const back = await center('#view-tab-graph-main');
   await click(back.x, back.y);
