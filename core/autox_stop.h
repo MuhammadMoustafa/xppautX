@@ -122,6 +122,7 @@ struct AutoxStopAt {
     int global; /* a cycle branch's period grows without bound: AutoxStop::global says where (W518) */
     bool hopf_end; /* a cycle branch's amplitude fell to zero at a Hopf point: AutoxStop::hopf_end says where (W604) */
     bool closed;   /* the branch came back to its start: AutoxStop::closure_gap says how exactly (W604) */
+    bool boundary; /* a boundary-value branch (a periodic orbit), solved on mesh.intervals' mesh (W877) */
 };
 
 /* why a branch ending at `at` ended; the first of: the user, no

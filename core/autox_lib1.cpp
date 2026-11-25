@@ -6332,6 +6332,7 @@ store_diagram_boundary(iap_type *iap, rap_type *rap, double *par, std::ptrdiff_t
   std::ptrdiff_t labw, ibrs, nins, itmp, jtmp, ntot;
   int iflag=0;
   xpp::AutoxStopAt stop_at = {0}; /* xppautX: T23 */
+  stop_at.boundary = true;
   std::ptrdiff_t i;
   std::vector<double> u_high(iap->ndim);
   std::vector<double> u_low(iap->ndim);

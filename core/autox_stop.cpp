@@ -48,8 +48,12 @@ std::string newton(const AutoxNoConvergence &nc)
     return "; newton.max_iterations " + std::to_string(nc.itnw) + ", newton.parameter_tolerance " + num(nc.epsl) + ", newton.state_tolerance " + num(nc.epsu);
 }
 
-/* what a stopped orbit's no-convergence most likely needs: the mesh (W877), as the Numerics show it */
-std::string mesh_hint(const AutoxParts &s) { return "; a periodic orbit may need a larger mesh.intervals (now " + std::to_string(s.autox_state->options.ntst) + ")"; }
+/* what a stopped orbit's no-convergence most likely needs: the mesh (W877), as the Numerics show it; nothing for an
+   equilibrium branch, which has no mesh */
+std::string mesh_hint(const AutoxParts &s, const AutoxStopAt &at)
+{
+    return at.boundary ? "; the orbit may need a larger mesh.intervals (now " + std::to_string(s.autox_state->options.ntst) + ")" : "";
+}
 
 /* the linear system the last Newton step solved was singular */
 std::string singular(const AutoxNoConvergence &nc)
@@ -89,7 +93,7 @@ std::string describe(const AutoxParts &s, const AutoxStop &st, int why, const Au
     case AUTOX_STOP_NOCONV_MIN:
         value = st.noconv.ds, limit = st.noconv.dsmin;
         return "no convergence even at the smallest step (step.min " + num(st.noconv.dsmin) + newton(st.noconv) + ")" +
-               singular(st.noconv) + mesh_hint(s);
+               singular(st.noconv) + mesh_hint(s, at);
     case AUTOX_STOP_NOCONV_SWITCH_FIXED:
         value = st.noconv.ds;
         return "no convergence switching branches with a fixed step size (step.adapt_every 0" + newton(st.noconv) + ")" +
@@ -97,7 +101,7 @@ std::string describe(const AutoxParts &s, const AutoxStop &st, int why, const Au
     case AUTOX_STOP_NOCONV_SWITCH_MIN:
         value = st.noconv.ds, limit = st.noconv.dsmin;
         return "no convergence switching branches, even at the smallest step (step.min " + num(st.noconv.dsmin) +
-               newton(st.noconv) + ")" + singular(st.noconv) + mesh_hint(s);
+               newton(st.noconv) + ")" + singular(st.noconv) + mesh_hint(s, at);
     case AUTOX_STOP_NOCONV:
         return "no convergence";
     case AUTOX_STOP_JACOBIAN:

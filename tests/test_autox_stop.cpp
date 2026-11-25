@@ -95,11 +95,18 @@ TEST_CASE("test_autox_stop")
     CHECK(st.why == xpp::AUTOX_STOP_NOCONV_MIN && st.br == 2 && st.value == 1e-5 && st.limit == 0.0001);
     CHECK_STR(st.key, "noconv-min");
     CHECK_STR(st.text, "no convergence even at the smallest step (step.min 0.0001; newton.max_iterations 5, newton.parameter_tolerance 1e-07, newton.state_tolerance 1e-06): "
-                       "the linear system is singular (smallest pivot 1e-31 < 1e-30); a periodic orbit may need a larger mesh.intervals (now 15)");
+                       "the linear system is singular (smallest pivot 1e-31 < 1e-30)");
     xpp::autox_stop_branch_end(run, &at);
     xpp::autox_stop_last(stop, &st);
     CHECK(st.why == xpp::AUTOX_STOP_NOCONV && std::isnan(st.value));
     CHECK_STR(st.text, "no convergence");
+    /* an orbit's branch, solved on a mesh, names the mesh as what to raise (W877) */
+    at.boundary = true;
+    xpp::autox_stop_noconv(stop, {xpp::AUTOX_STOP_NOCONV_MIN, -1e-5, 0.0001, 5, 1e-7, 1e-6, 1});
+    xpp::autox_stop_branch_end(run, &at);
+    xpp::autox_stop_last(stop, &st);
+    CHECK_STR(st.text, "no convergence even at the smallest step (step.min 0.0001; newton.max_iterations 5, newton.parameter_tolerance 1e-07, newton.state_tolerance 1e-06); "
+                       "the orbit may need a larger mesh.intervals (now 15)");
     at = inside();
     at.nmx = 7;
     xpp::autox_stop_branch_end(run, &at);
