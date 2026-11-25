@@ -3579,8 +3579,10 @@ async function autoxScriptCheck(dir) {
   await requireUntil(`!s.busy && s.autoxScript.open && s.autoxScript.runs.length === 2`, 'the script open');
   check('W684: the script lists its runs in order, none done, the second from the first\'s hopf point',
     await S(`JSON.stringify(s.autoxScript.runs.map(r => [r.name, r.done, r.from && r.from.run])) === '[["steady",false,null],["back",false,"steady"]]'`));
-  await openAutoxPanel();
-  await requireUntil(`document.querySelectorAll('[data-script-run]').length === 2`, 'the Script panel');
+  /* W854 (#935): the open itself shows autoX, its tab active and its Script panel listing the runs; no autoX > Open was sent */
+  await requireUntil(`s.diagram.open && s.diagram.shown && document.querySelectorAll('[data-script-run]').length === 2`, 'the autoX window with the Script panel');
+  check('W854: opening a .autox makes the autoX tab the active one, its Script panel listing the runs (no autoX > Open sent)',
+    await cdp.eval(`document.querySelector('.shell').dataset.view === 'autox' && !!document.querySelector('.autox-script') && !!document.querySelector('.autox-panel')`));
   const row = name => `document.querySelector('[data-script-run="${name}"]')`;
   check('W684: the panel lists the runs in order, each with its start in words',
     await cdp.eval(`[...document.querySelectorAll('[data-script-run]')].map(r => r.dataset.scriptRun).join() === 'steady,back'
@@ -3710,16 +3712,15 @@ async function autoxScriptShots(dir) {
   await openFile('ab_runs.autox');
   await until("s.ask && s.ask.kind === 'choice'", 'save first?');
   await answerAsk({key: 'd'});
-  await requireUntil(`!s.busy && s.autoxScript.open`, 'the script open');
-  await openAutoxPanel();
-  await requireUntil(`document.querySelectorAll('[data-script-run]').length === 2`, 'the Script panel');
-  const sizes = [['1280-light', 1280, 860, 'light'], ['1440-dark', 1440, 900, 'dark'], ['768', 768, 1024, 'light'], ['390', 390, 844, 'light']];
+  await requireUntil(`!s.busy && s.autoxScript.open && s.diagram.open && s.diagram.shown && document.querySelectorAll('[data-script-run]').length === 2`, 'the autoX window with the Script panel');
+  /* W854 (#935): the page right after the .autox opened, the whole page at 375, 768 and 1280 wide, light and dark (the Script panel
+     in view as the page shows it, no scroll) */
+  const sizes = [['1280-light', 1280, 860, 'light'], ['1280-dark', 1280, 860, 'dark'], ['768-light', 768, 1024, 'light'], ['768-dark', 768, 1024, 'dark'],
+    ['375-light', 375, 812, 'light'], ['375-dark', 375, 812, 'dark']];
   const frames = async (prefix) => {
     for (const [size, width, height, scheme] of sizes) {
       await cdp.send('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile: width < 500});
       await cdp.send('Emulation.setEmulatedMedia', {features: [{name: 'prefers-color-scheme', value: scheme}]});
-      await rendered();
-      await cdp.eval(`document.querySelector('.autox-script').scrollIntoView({block: 'center'})`);
       await rendered();
       fs.writeFileSync(path.join(out, `${prefix}-${size}.png`), Buffer.from((await cdp.send('Page.captureScreenshot', {format: 'png'})).data, 'base64'));
     }

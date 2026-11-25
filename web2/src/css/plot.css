@@ -167,13 +167,15 @@
   position: absolute;
   inset: 0;
   display: grid;
+  grid-template-columns: minmax(0, 1fr); /* the message wraps inside the plot, never past its edges (phone width, W854) */
   place-content: center;
   justify-items: center;
   gap: var(--space-2);
+  padding: var(--space-3);
   color: var(--fg-muted);
   z-index: var(--z-plot-empty);
 }
-.plot-empty p { margin: 0; }
+.plot-empty p { margin: 0; text-align: center; }
 .hover-dot {
   position: absolute;
   width: 0.75rem;

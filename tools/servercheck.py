@@ -677,6 +677,26 @@ def check_script_unknown_option():
     finally:
         shutil.rmtree(folder, ignore_errors=True)
 
+def check_script_opens_window():
+    """W854 (#935): a .autox opened on the command line opens the autoX window at the load: the load's session.state carries autox
+    (the window's axes), with no command sent; a .odex's session.state has no autox, so the window stays closed for a model"""
+    folder = tempfile.mkdtemp(prefix='xppw854')
+    try:
+        for name in ('pvn_slowfast_hcn.odex', 'pvn_slowfast_hcn_w857.autox'):
+            shutil.copy(autoxcompare.ROOT / 'tools/models' / name, folder)
+        for name in ('pvn_slowfast_hcn_w857.autox', 'pvn_slowfast_hcn.odex'):
+            s = Server(args.server, os.path.join(folder, name), run=folder)
+            try:
+                states = [e for e in autoxcompare.completed(s) if e.get('ev') == 'session.state']
+                opened = bool(states) and 'autox' in states[-1]
+                check('W854 (#935): %s %s the autoX window at the load (session.state carries autox)' % (name, 'opens' if name.endswith('.autox') else 'does not open'),
+                      opened == name.endswith('.autox'), str(states)[-300:])
+            finally:
+                s.close()
+    finally:
+        shutil.rmtree(folder, ignore_errors=True)
+
+
 def check_script_repeated_run():
     """W857 variant (b): follow_all_branches stays on in a script, and a run whose start lies on a branch the diagram already holds is not
     made: no branch and no point, no error, the Script panel's row says why (autox.script_runs' skipped), the log says it once, and the
@@ -13990,6 +14010,7 @@ check_autox_closed_branch()
 check_autox_range_branch()
 check_autox_starts()
 check_script_refused_run()
+check_script_opens_window()
 check_script_repeated_run()
 check_script_hopf_cycles_replace()
 check_autox_two_parameter_starts()

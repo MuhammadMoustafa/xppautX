@@ -119,6 +119,8 @@ static std::string usage_tail()
     "A session file (name.snapx, File/Save session or autoX's Save diagram)\n"
     "opens its saved model and whole session. A recording (name.recx)\n"
     "opens in the player; name.recx --silent plays it without an interface.\n"
+    "An autoX script (name.autox) opens its model, and the autoX window with\n"
+    "its runs listed in the Script panel; nothing is computed until a run is asked for.\n"
     "Options:\n"
     "  -y, --yes        answer every terminal question yes (suggested names, replacing\n"
     "                   files), printing each answer taken\n"

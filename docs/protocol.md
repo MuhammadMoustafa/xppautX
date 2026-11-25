@@ -2928,7 +2928,7 @@ menus and ends in the same function. It is the command the error of an exact Jac
 (`error`'s `action`, above), from the end point's label.
 
 **autoX scripts: `autox.run_script`, `autox.script`** (W306). A model file named `name.autox` opens with the model it names
-(`xppautX name.autox`, File > Open model, `--server name.autox`, `session.open_model`): a script of named runs in the
+(`xppautX name.autox`, File > Open model, `--server name.autox`, `session.open_model`) and the autoX window opens with it at the load: the load's `session.state` carries `autox` (the window's axes, as for any open autoX window) and the page makes its tab active with the Script panel, so no command is sent for it (W854 Opening a .autox opens the autoX window with its script, #935); a `.ode` or `.odex` load never opens it. A script of named runs in the
 model's own syntax (`version: 4`, `model: "x.odex"`, an optional `diagram: "x.csv"`, and `runs: [ {...}, ... ]`, each run
 a `name`, a `kind`, `switch`, `replace_diagram`, `parameters` (one or two model parameters), `start`
 (`{ run, type, index }`: the `index`-th point of `type` among the points the named earlier run stored, since a label is

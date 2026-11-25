@@ -56,6 +56,7 @@
 #include "xpp_files.h"
 #include "odex.h"
 #include "autox_script.h"
+#include "many_pops.h"
 #include "aniparse.h"
 #include "xpp_ui.h"
 #include "expr_program.h"
@@ -321,6 +322,8 @@ static void load_and_set_up(xpp::Session &s, const CommandLine &cl, std::optiona
     strip_saveqn(m);
     create_plot_list(s);
     init_all_graph(s);
+    /* an .autox script opens autoX's window with its runs listed: the file is for running them, so the window shows at the load (the page follows session.state's autox) */
+    if (s.autox_state->script.script) open_diagram_window(s);
     if (!cl.convert) load_option_animation(s);
 }
 
