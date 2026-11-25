@@ -81,17 +81,19 @@
 .message-error .message-text { color: var(--danger); }
 .message-autox .message-kind { color: var(--accent); }
 .toasts {
-  position: fixed;
-  right: var(--space-4);
-  bottom: 3rem;
+  /* its own row of the shell, between the work area and the status bar (layout.css): a notice covers no control at any width,
+     where a floating one covered the dock's Values or the plot's axis names; an empty list takes no row */
+  grid-area: toasts;
+  justify-self: end;
   display: grid;
   gap: var(--space-2);
   list-style: none;
   margin: 0;
-  padding: 0;
-  z-index: var(--z-toast);
-  width: min(24rem, calc(100vw - 2 * var(--space-4)));
+  padding: var(--space-2) var(--space-4);
+  width: min(24rem, 100%);
+  max-width: 100%;
 }
+.toasts:empty { display: none; }
 .toast {
   display: flex;
   align-items: flex-start;

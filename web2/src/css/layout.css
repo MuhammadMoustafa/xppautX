@@ -13,7 +13,7 @@ body {
 h1, h2 { margin: 0; }
 
 /* ---- shell: title / menu bar / view tabs / work / dock / status; the dock is a right column from 48rem, a sheet below (css/panels.css) ---- */
-.shell { display: grid; height: 100%; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto minmax(10rem, 1fr) auto; grid-template-areas: 'title' 'menus' 'tabs' 'work' 'status'; }
+.shell { display: grid; height: 100%; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto minmax(10rem, 1fr) auto auto; grid-template-areas: 'title' 'menus' 'tabs' 'work' 'toasts' 'status'; }
 .start-shell { display: flex; flex-direction: column; height: 100%; grid-template-rows: auto auto minmax(0, 1fr) auto; grid-template-areas: 'title' 'menus' 'work' 'status'; }
 .title-bar {
   grid-area: title;
@@ -131,7 +131,7 @@ h1, h2 { margin: 0; }
 
 /* from 48rem the dock is a right column below the header, beside the tabs and the plot (R3, R6); wider, the column is wider */
 @media (min-width: 48rem) {
-  .shell { grid-template-columns: minmax(0, 1fr) var(--dock-col, 20rem); grid-template-rows: auto auto auto minmax(0, 1fr) auto; grid-template-areas: 'title title' 'menus menus' 'tabs dock' 'work dock' 'status status'; }
+  .shell { grid-template-columns: minmax(0, 1fr) var(--dock-col, 20rem); grid-template-rows: auto auto auto minmax(0, 1fr) auto auto; grid-template-areas: 'title title' 'menus menus' 'tabs dock' 'work dock' 'toasts toasts' 'status status'; }
 }
 @media (min-width: 80rem) {
   .shell { grid-template-columns: minmax(0, 1fr) var(--dock-col, 30rem); }

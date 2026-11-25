@@ -59,6 +59,7 @@ autoX, Windows and Help; "Commands", in the next chapter), the plot, the **Value
 a **status bar** along the bottom that shows "Working…" with a progress
 bar and one **Stop** control whenever a command is running (in any view;
 there is no per-view Abort button — see "Long-running commands" below).
+A notice (a file saved or downloaded) appears in its own strip between the work area and that status bar, so it covers no control; on a phone with the Values sheet open it waits beneath the sheet until the sheet closes.
 The bar keeps a fixed height and, at its right end, a fixed-width slot
 for the progress bar and Stop/"Stopping…", reserved whether or not a run is going, so a
 command starting or ending never resizes the bar or shifts the plot

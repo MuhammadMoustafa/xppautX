@@ -70,7 +70,7 @@
    the one open command.
 
    node tools/web2check.mjs [--bin ./xppautX] [--browser PATH] [--webview2]
-     [--only popout,options,fieldhelp,dock,viewtabs,splitview,desktop,layout,phase,marks,autox,labelmarks,autoxmarks,autoxviews,lostf,keys,keymap,keymapeditor,pins,record,player,leave,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help,loaderror,startscreen,sets,cut] [-v]
+     [--only popout,options,fieldhelp,dock,viewtabs,splitview,desktop,layout,phase,marks,autox,labelmarks,autoxmarks,autoxviews,lostf,keys,keymap,keymapeditor,pins,record,player,leave,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help,loaderror,startscreen,sets,cut,toast] [-v]
    --only updates stubs GitHub before load. --webview2 is Windows only,
    requires --only desktop,files,help,updates,native (a selected subset),
    and runs files through native-binding fixtures; desktop omits browser file fixtures.
@@ -8355,6 +8355,57 @@ async function sessionAttempts(ode, fn, expected, attempts) {
 
 /* ---- cut text (W640, #712): a number cut to six digits and a name cut by its box say so, show the whole text in a
    tip in the top layer, and a click copies it with a green tick ---- */
+/* W881: a notice (the browser save's "downloaded" toast) covers no control at any width: it has a row of its own between the
+   work area and the status bar (layout.css), so it lies over no control of the work area, the dock or the status bar. Each
+   element is measured clipped by the boxes of its scrolling ancestors, so what a scroll hides is not counted. */
+async function toastCheck() {
+  const overlaps = `(() => {
+    const t = document.querySelector('.toast');
+    if (!t) return ['no notice'];
+    const r = t.getBoundingClientRect();
+    const clipped = el => {
+      let b = el.getBoundingClientRect();
+      for (let p = el.parentElement; p; p = p.parentElement) {
+        const cs = getComputedStyle(p);
+        if (cs.overflowX === 'visible' && cs.overflowY === 'visible') continue;
+        const q = p.getBoundingClientRect();
+        b = {left: Math.max(b.left, q.left), top: Math.max(b.top, q.top), right: Math.min(b.right, q.right), bottom: Math.min(b.bottom, q.bottom)};
+      }
+      return b;
+    };
+    const hits = [];
+    for (const el of document.querySelectorAll('button, input, select, textarea, a[href], summary, [tabindex], [role=button], [role=tab], [role=checkbox]')) {
+      if (el.closest('.toasts') || !el.checkVisibility({visibilityProperty: true})) continue;
+      const b = clipped(el);
+      if (b.right <= b.left || b.bottom <= b.top) continue;
+      if (b.left < r.right && b.right > r.left && b.top < r.bottom && b.bottom > r.top) hits.push((el.getAttribute('aria-label') || el.innerText || el.className || el.tagName).toString().slice(0, 40));
+    }
+    return hits;
+  })()`;
+  const notice = `s.toasts.some(t => t.text.endsWith(' downloaded'))`;
+  /* a save writes the model's session file beside the model, so each width has its own folder and page: a second save in one
+     page would ask to replace the first one's file */
+  for (const [width, height] of [[375, 812], [768, 1024], [1280, 860]]) {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xppweb2-toast-'));
+    fs.mkdirSync(path.join(dir, 'xpp-config'));
+    fs.writeFileSync(path.join(dir, 'xpp-config', 'settings.json'), '{"version": 4, "updates": {"check_for_updates": false}}\n');
+    copyModel(ODE, path.join(dir, 'lecar.odex'));
+    const server = await startServer(bin, dir, ['lecar.odex']);
+    try {
+      await cdp.send('Page.navigate', {url: server.url});
+      const loaded = await until('s.hello && s.core && !s.busy', 'the model', 30000 * SLOW);
+      await metrics({width, height, deviceScaleFactor: 1, mobile: width < 500});
+      await cdp.eval(`__xpp.send({cmd: 'session.save'}); true`);
+      const shown = loaded && await until(notice, 'the download notice', 30000 * SLOW);
+      const hits = shown ? await cdp.eval(overlaps) : ['no notice'];
+      check(`toast at ${width} px: the download notice covers no control`, shown && Array.isArray(hits) && hits.length === 0, JSON.stringify(hits));
+    } finally {
+      await stopServer(server);
+      fs.rmSync(dir, {recursive: true, force: true, maxRetries: 5});
+    }
+  }
+}
+
 async function cutCheck() {
   await desktopMetrics();
   check('cut: the page connects', await until('s.hello && !s.busy', 'hello'));
@@ -9125,6 +9176,7 @@ async function main() {
     if (run('cut')) await session(ODE, cutCheck);
     if (run('cut')) await session(LONG, axisTitleCut);
     if (run('cut')) await session(ODE, axisTitleShort);
+    if (run('toast')) await toastCheck();
     if (run('sets')) await session(ODE, setsRows, ['command:1: The run stored 0 row(s): nothing to analyse (at least 1 are needed)']);
     if (run('values')) await session(LIVE, valuesLive, [BAD_IAPP, commandError('Argument "values.gca" must be a finite number')]);
     if (run('values')) await session(path.join(top, 'examples/ode/amari.odex'), bcSection(0));
