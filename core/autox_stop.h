@@ -9,9 +9,9 @@
    which one it was. Nothing here changes what autoX computes: it only
    records and reports.
 
-   Each branch end writes a line in autoX's Output ("Branch 1 stopped at
-   point 57: parameter iapp reached Par Max (0.45)", xpp::log_autox); the
-   last one is what the `autoxinfo` event's "stop" holds until the next run
+   A run's end says each branch's end in autoX's Output ("Branch 1 stopped at
+   point 57: parameter iapp reached Par Max (0.45)", autox_run.cpp's summary);
+   the last one is what the `autoxinfo` event's "stop" holds until the next run
    starts or autoX's window is new.
 
    autox_stop.cpp; nothing escapes it. */
@@ -68,6 +68,14 @@ struct AutoxNoConvergence {
 
 /* what autoX runs recorded: one run's (AutoxRun::stop), or the last runs'
    a Session shows (AutoxState::stop) */
+/* one branch end of a run: its reason's key and its text (the last branch end's, as last_*), where it was */
+struct AutoxBranchEnd {
+    int why;
+    const char *key; /* "parmax", "noconv-min", ... (autox_stop_last's key) */
+    long br, pt;
+    std::string text;
+};
+
 struct AutoxStop {
     /* the last "No convergence" NOTE */
     AutoxNoConvergence noconv;
@@ -76,6 +84,10 @@ struct AutoxStop {
     long last_br = 0, last_pt = 0;
     double last_value = NAN, last_limit = NAN;
     std::string last_text;
+    /* every branch end the run made, in order: what the end of a run says (autox_run.cpp's summary) */
+    std::vector<AutoxBranchEnd> ends;
+    /* the jobs a follow-all-branches run started from the points it found (autox_jobs.cpp's join) */
+    int followed = 0;
     /* what the run lost or could not trust (autox_stop_note), in words */
     std::vector<std::string> notes;
     /* the run's start was refined by Newton before it ran (autox_evd.cpp), so it is not the start as given */

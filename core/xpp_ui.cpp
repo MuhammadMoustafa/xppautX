@@ -76,6 +76,7 @@ static void hl_bottom_msg(int, std::string_view msg, std::string_view, std::stri
 static int hl_autox_points_held(Session &) { return 0; } /* no client holds a point */
 static void hl_autox_jobs(const XppAutoxJobs &) {}
 static void hl_autox_joined(const std::vector<XppJoinedJob> &) {}
+static void hl_autox_summary(const XppRunSummary &) {}
 static void hl_autox_live_drop(Session &) {}
 static void hl_s(Session &) {}
 static void hl_s_int(Session &, int) {}
@@ -210,6 +211,7 @@ XppUi ui = {
     .autox_points_held = hl_autox_points_held,
     .autox_jobs = hl_autox_jobs,
     .autox_joined = hl_autox_joined,
+    .autox_summary = hl_autox_summary,
     .autox_live_drop = hl_autox_live_drop,
     .new_vcr = hl_s,
     .ani_show = hl_void,
@@ -525,6 +527,7 @@ int byeautox_(int *iflag) /* autoX's checkpoint, as my_abort() */
 int autox_points_held(Session &s) { return ui.autox_points_held(s); }
 void autox_jobs(const XppAutoxJobs &jobs) { ui.autox_jobs(jobs); }
 void autox_joined(const std::vector<XppJoinedJob> &jobs) { ui.autox_joined(jobs); }
+void autox_summary(const XppRunSummary &summary) { ui.autox_summary(summary); }
 void autox_live_drop(Session &s) { ui.autox_live_drop(s); }
 void autox_diagram(Session &s, int view, const XppDiagPoint *p) { ui.autox_diagram(s, view, p); }
 void init_txtview(void) { ui.init_txtview(); }

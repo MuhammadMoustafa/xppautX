@@ -974,6 +974,7 @@ Result<> autox_run_jobs(AutoxParts s, int iold, int isave)
     if(!job.warnings.empty())xpp::log(XPP_LOG_WARN,"{}",renumbered_table(job.warnings,mine));
     if(job.failed)job.failed->what=autox_renumbered_line(job.failed->what,[&](int value){return mine.branch(value);},[&](int value){return mine.label(value);}); /* "Branch N point M: nonfinite" */
     run.stop.last_br=mine.branch(static_cast<int>(run.stop.last_br)); /* why this job's branches ended, as the diagram numbers them */
+    for(xpp::AutoxBranchEnd &end:run.stop.ends)end.br=mine.branch(static_cast<int>(end.br));
     for(std::string &note:run.stop.notes)
       note=autox_renumbered_line(note,[&](int value){return mine.branch(value);},[&](int value){return mine.label(value);});
     /* a job that ended early alone was shown when it did; the run's own error is the command's */
@@ -982,6 +983,9 @@ Result<> autox_run_jobs(AutoxParts s, int iold, int isave)
     if(auto ended=autox_end_run(s,run,std::move(wide_error),saving);ended&&!reported&&run.run_wide_error)reported=std::move(ended);
   }
   autox_joined(joined);
+  int followed=0; /* the jobs the found points started and that kept their points: what a run's end says was followed */
+  for(const QueuedJob *queued:order)if(queued->parent&&queued->started&&!queued->left_out)followed++;
+  s.autox_state->stop.followed=followed;
   std::vector<xpp::job::BranchJob> ends; /* how the jobs that count ended, and the counts a stop or an early end reports */
   int finished=0,stopped_jobs=0,never_started=0,early=0;
   for(const QueuedJob *queued:order){

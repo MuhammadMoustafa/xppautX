@@ -60,11 +60,12 @@ export type {LogEntry} from './log';
     header and rows (core/autox_lib1.c xpp_log_autox, "  BR    PT  TY LAB " then
     "%4li%6li  %c%c%4li%14.6E..." rows, the type blank on the rows NPr
     prints, T27) and its handful of fixed messages
-    ("Generating starting data", "Hopf point", ...) and why a branch ended
-    (core/autox_stop.cpp, "Branch 1 stopped at point 57: ..."). Anything else stays
+    ("Generating starting data", "Hopf point", ...) and what a run's end says
+    (core/autox_run.cpp, "Branch 1: fold (LP 23) at hfix = 0.27; stopped at point 57: ...",
+    "From LP 23: two-parameter fold continuation"). Anything else stays
     plain `log`; this never sees `message` `error` text (handled separately). */
 const AUTOX_ROW = /^\s*-?\d+\s+-?\d+\s+([A-Za-z]+\s+)?-?\d+(\s+-?\d+(\.\d+)?([eE][+-]?\d+)?){2,}\s*$/;
-const AUTOX_PHRASE = /BR\s+PT\s+TY\s+LAB|Generating starting data|Restart at EP label|Hopf point|Limit point|Periodic point|Max point|End point|NPARX|NCOL=|step.min|step.max|Division by Zero|Initialization Error CRASH|Restart label|Branch \d+ stopped at point \d+:/;
+const AUTOX_PHRASE = /BR\s+PT\s+TY\s+LAB|Generating starting data|Restart at EP label|Hopf point|Limit point|Periodic point|Max point|End point|NPARX|NCOL=|step.min|step.max|Division by Zero|Initialization Error CRASH|Restart label|Branch \d+: |From \S+ \d+: |No branch point or Hopf point to follow|Branch \d+ stopped at point \d+:/;
 export function classifyLogText(text: string): 'log' | 'autox' {
   return AUTOX_ROW.test(text) || AUTOX_PHRASE.test(text) ? 'autox' : 'log';
 }

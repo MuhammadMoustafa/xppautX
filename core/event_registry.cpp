@@ -48,6 +48,7 @@ constexpr std::array EVENTS = {
     Event{AUTOX_JOBS, "running, queued, done, jobs",
           "A run of branch jobs (follow_all_branches) changed: how many jobs run, wait to start and have ended, and each running job's points so far; the last one is the run's end."},
     Event{AUTOX_JOINED, "jobs", "A run of branch jobs (follow_all_branches) was joined: each job that kept its points, with its key and the branch its joined points carry."},
+    Event{AUTOX_SUMMARY, "branches, follow, lines", "A run ended: per branch what it found and why it stopped, what can be followed from the points found, and the lines autoX's Output shows (the same text)."},
     Event{AUTOX_OPTIONS, "numerics, pars, axes, marks", "autoX's options as data.", AUTOX_OPTIONS},
     Event{AUTOX_SCRIPT_RUNS, "open, file, model, runs", "The open .autox script's runs in order: each one's name, what it starts from, whether it has run and the error that refused its last attempt and why it was not made when its start lay on a branch the diagram holds (each null when none).", AUTOX_SCRIPT_RUNS},
     Event{AUTOX_VIEW, "earlier, show, active, views", "autoX's hidden branches, the active view and each view's zoom."},

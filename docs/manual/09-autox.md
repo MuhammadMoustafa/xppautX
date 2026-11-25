@@ -102,8 +102,12 @@ it back. It has:
   below), side by side;
 - once a run ends, the status strip says **why it stopped**, in words:
   "Stopped: parameter iapp reached limits.parameter_max (0.5)" (see "Why a branch
-  stopped" below), and autoX's Output gets the same as a line for every
-  branch that ends ("Branch 1 stopped at point 49: ...");
+  stopped" below), and when a run ends autoX's Output says what it found on
+  each branch it made and why the branch stopped ("Branch 1: fold (LP 23) at
+  hfix = 0.2701; stopped at point 49: ..."), then what can be followed from the
+  points found ("From LP 23: two-parameter fold continuation"); with Follow all
+  branches on and nothing to follow it says "No branch point or Hopf point to
+  follow" once;
 - the diagram's **key** lists the label types it has, spelled out with its label and mark (End of branch EP,
   Andronov–Hopf AH, ...), each with its meaning as a tooltip and the same mark it is drawn with on the diagram.
   One rule gives the marks: the **shape** gives the kind of point, the **fill** says what it lies on (filled
@@ -649,7 +653,8 @@ autoX labels the end of a branch EP or MX but does not say why. xppautX
 records it where autoX decides it (autox_lib1.c's stplae and stplbv, and the
 "No convergence" notes of its fort.9) and says it in plain words: in the
 autoX view's status strip once the run ends ("Stopped: ..."), as a line in
-Output for every branch that ends ("Branch 1 stopped at point 49: ..."),
+Output for every branch the run made, at its end ("Branch 1: ...; stopped at
+point 49: ..."),
 next to the end point's label when you hover it, and as `autox.info`'s
 `stop` for a client (docs/protocol.md). The reasons:
 

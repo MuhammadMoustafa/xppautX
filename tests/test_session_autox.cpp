@@ -572,7 +572,8 @@ void check_directions_output(unsigned threads)
         for(std::size_t at=text.find(what);at!=std::string::npos;at=text.find(what,at+1))n++;
         return n;
     };
-    CHECK(count("Branch 1 stopped at point")==1 && count("Branch 2 stopped at point")==1); /* -DS's job counted its branch as 1 */
+    /* each branch is one line of the run's end (W860), -DS's job counted its branch as 1 */
+    CHECK(count("Branch 1: ")==1 && count("Branch 2: ")==1 && count("stopped at point")==2);
     CHECK(text.find(xpp::autox_point_row_key(2,1,"EP",0).substr(0,16))!=std::string::npos); /* its first point's row: branch 2, point 1, EP */
 }
 

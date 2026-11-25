@@ -49,6 +49,7 @@ inline constexpr char AUTOX_DIAGRAM[] = "autox.diagram";
 inline constexpr char AUTOX_INFO[] = "autox.info";
 inline constexpr char AUTOX_JOBS[] = "autox.jobs";
 inline constexpr char AUTOX_JOINED[] = "autox.joined";
+inline constexpr char AUTOX_SUMMARY[] = "autox.summary";
 inline constexpr char AUTOX_OPTIONS[] = "autox.options";
 inline constexpr char AUTOX_SCRIPT_RUNS[] = "autox.script_runs";
 inline constexpr char AUTOX_VIEW[] = "autox.view";

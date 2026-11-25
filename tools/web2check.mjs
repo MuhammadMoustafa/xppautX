@@ -1928,9 +1928,10 @@ async function autoxView(dir) {
     return {sum: d.querySelector('summary').textContent, text: d.querySelector('pre') && d.querySelector('pre').textContent}; })()`);
   check("T21: the Output panel shows autoX's table", /^Output \(\d+\)$/.test(out.sum) && out.sum !== 'Output (0)'
     && /BR\s+PT\s+TY/.test(out.text || ''), JSON.stringify(out).slice(0, 300));
-  const reasonLine = stop ? `Branch 1 stopped at point ${stop.pt}: ${stop.text}` : '?';
+  /* W860: a run's end says each branch's found points and why it stopped, as one line (autox_run.cpp's summary) */
+  const reasonText = stop ? `stopped at point ${stop.pt}: ${stop.text}` : '?';
   check('T23: ... and the reason as a line of its own',
-    await until(`document.querySelector('.autox-output pre').textContent.split('\\n').includes(${JSON.stringify(reasonLine)})`,
+    await until(`document.querySelector('.autox-output pre').textContent.split('\\n').some(l => l.startsWith('Branch 1') && l.includes(${JSON.stringify(reasonText)}))`,
       'reason in output'), (await cdp.eval(`document.querySelector('.autox-output pre').textContent`)).slice(-300));
   const key23 = await cdp.eval(`[...document.querySelectorAll('.autox-legend-label')].map(l => [l.dataset.sym, l.dataset.shape,
     l.querySelector('.autox-label-mark').textContent, l.textContent.trim(), l.title])`);

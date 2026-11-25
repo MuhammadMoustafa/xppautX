@@ -156,6 +156,8 @@ void autox_stop_clear(AutoxStop &st)
 {
     st.last_why = AUTOX_STOP_NONE;
     st.last_text.clear();
+    st.ends.clear();
+    st.followed = 0;
     st.noconv = {};
     st.notes.clear();
     st.start_refined = false;
@@ -188,6 +190,7 @@ void autox_stop_merge(AutoxStop &shown, AutoxStop &&run)
         shown.last_limit = run.last_limit;
         shown.last_text = std::move(run.last_text);
     }
+    for (AutoxBranchEnd &end : run.ends) shown.ends.push_back(std::move(end));
     for (std::string &note : run.notes) shown.notes.push_back(std::move(note));
     shown.start_refined |= run.start_refined;
 }
@@ -216,7 +219,7 @@ void autox_stop_branch_end(AutoxRun &run, const AutoxStopAt *at)
         st.last_value = value;
         st.last_limit = limit;
         st.last_text = std::move(text);
-        xpp::log_autox("Branch {:d} stopped at point {:d}: {}\n", st.last_br, st.last_pt, st.last_text.c_str());
+        st.ends.push_back({why, keys[why], st.last_br, st.last_pt, st.last_text});
         /* no convergence is no limit the user set: said where autoX's Output is not shown too */
         if (why >= AUTOX_STOP_NOCONV && why <= AUTOX_STOP_NOCONV_SWITCH_MIN && !xpp::log_autox_enabled())
             xpp::log(XPP_LOG_WARN, "autoX: branch {:d} stopped at point {:d}: {}\n", st.last_br, st.last_pt, st.last_text);

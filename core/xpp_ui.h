@@ -144,6 +144,36 @@ struct XppJoinedJob {
     bool operator==(const XppJoinedJob &) const = default;
 };
 
+/* what a run's end says (autox_run.cpp): per branch the run made, the special points it found on it (a fold, a branch point,
+   ...: its mark and label, the continuation parameter and its value), and why the branch ended (stop: the key and text of its
+   branch end, null when it did not end); what can be followed from each point found (its kinds, the table autox_run_rows) and
+   the lines autoX's Output shows, the same text */
+struct XppRunFound {
+    std::string sym; /* the point's mark: "LP" */
+    int lab;
+    std::string name; /* the point's name: "fold" */
+    std::string par; /* the continuation parameter's name */
+    double x;
+};
+struct XppRunBranch {
+    long br;
+    std::vector<XppRunFound> found;
+    bool stopped = false;
+    std::string why; /* the branch end's key: "parmin" */
+    long pt = 0;
+    std::string text;
+};
+struct XppRunFollow {
+    std::string sym;
+    int lab;
+    std::vector<std::string> kinds; /* the kinds a point of its type starts: "two_parameter" */
+};
+struct XppRunSummary {
+    std::vector<XppRunBranch> branches;
+    std::vector<XppRunFollow> follow;
+    std::vector<std::string> lines;
+};
+
 /* Historical names, now dispatchers. Declared here so every core file sees
    one consistent prototype. */
 /* An error is command_error, err_reading or show_error with its place.
@@ -316,6 +346,8 @@ typedef struct XppUi {
     void (*autox_jobs)(const XppAutoxJobs &jobs);
     /* the jobs were joined: those that kept their points, in the join's order, with the branch their joined points carry */
     void (*autox_joined)(const std::vector<XppJoinedJob> &jobs);
+    /* a run ended: what it found and what can be followed from it (the autox.summary event) */
+    void (*autox_summary)(const XppRunSummary &summary);
     /* the points the running jobs drew as they came (XppDiagPoint.live) go, in every view: the jobs are joined, and the
        diagram's own points follow, or the run ended with none */
     void (*autox_live_drop)(Session &s);
@@ -382,6 +414,7 @@ void autox_diagram(Session &s, int view, const XppDiagPoint *p);
 int autox_points_held(Session &s);
 void autox_jobs(const XppAutoxJobs &jobs);
 void autox_joined(const std::vector<XppJoinedJob> &jobs);
+void autox_summary(const XppRunSummary &summary);
 void autox_live_drop(Session &s);
 void create_eq_box(Session &s, int cp, int cm, int rp, int rm, int im, double *y, double *ev, int n);
 void make_my_aplot(Session &s, std::string_view name);

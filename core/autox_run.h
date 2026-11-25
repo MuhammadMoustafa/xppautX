@@ -43,6 +43,9 @@ struct AutoxRunRow {
     unsigned switch_kinds;
 };
 
+/* the kinds a row allows (its bits), in the order of autox_run_kind_names: the names the protocol sends */
+std::vector<const char *> autox_run_kind_list(unsigned kinds);
+
 /* the kinds a run from the current state computes (no start point) */
 inline constexpr unsigned autox_run_current_kinds =
     autox_run_bits({AutoxRunKind::equilibrium, AutoxRunKind::periodic, AutoxRunKind::bvp, AutoxRunKind::homoclinic,

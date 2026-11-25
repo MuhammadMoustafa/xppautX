@@ -3820,7 +3820,41 @@ def check_options_panels():
 
 
 
-INDEPENDENT_SECTIONS = {'replace': check_replace_answer, 'export': check_export_several, 'options': check_options_panels, 'atomic': check_atomic_commands, 'equilibria': check_equilibrium_settings, 'registry': check_registry, 'branchjobs': check_autox_branch_jobs, 'session': check_session_commands, 'data': check_data_value_set, 'kinescope': check_kinescope_animation_array_plot, 'firstpoint': lambda: (check_autox_first_point_stability(), check_autox_orbit_first_points(), check_autox_not_applicable()), 'stops': lambda: (check_stops(), check_autox_stops(), check_autox_starts(), check_script_refused_run(), check_script_unknown_option(), check_script_repeated_run(), check_script_hopf_cycles_replace(), check_autox_two_parameter_starts(), check_autox_periodic_start_kind(), check_autox_registry(), check_fit_stops(), check_event_count_note(), check_autox_restart_file_stops(), check_autox_multiplier_note(), check_autox_singular_pivot())}
+# W860 (#941): a run's end says what it found and what can be followed from it. XPPAUT 8.0's tstauto/pen (a named demo, whose
+# baseline reaches only folds) from its rest state, equilibria in ri with follow all branches on: the branch has one fold and
+# nothing a follow-all run starts from, so its end says so once, and the fold's line and its branch end are in autoX's Output
+PEN_MODEL = 'examples/tstauto/pen.odex'
+PEN_START = [dict(kind='ic', name='ph1', value=0.411516846067488), dict(kind='ic', name='ph2', value=0.411516846067488),
+             dict(kind='ic', name='ps1', value=0), dict(kind='ic', name='ps2', value=0)]
+PEN_RUN = dict(kind='equilibrium', replace_diagram=False, follow_all_branches=True, **{'limits.steps': 100}, **{'output.every': 20},
+               **{'limits.parameter_min': 0}, **{'limits.parameter_max': 1}, **{'step.initial': 0.02}, **{'step.min': 1e-5},
+               **{'step.max': 0.02}, **{'mesh.intervals': 15}, max_branch_switches=0)
+
+
+def check_run_summary():
+    s = Server(args.server, autoxcompare.ROOT / PEN_MODEL)
+    try:
+        autoxcompare.completed(s)
+        autoxcompare.set_values(s, PEN_START)
+        autoxcompare.completed(s, dict(cmd='autox.open'))
+        autoxcompare.completed(s, dict(cmd='autox.configure_axes', parameter1='ri'))
+        evs = autoxcompare.completed(s, dict(cmd='autox.run', **PEN_RUN))
+        summaries = [e for e in evs if e.get('ev') == 'autox.summary']
+        lines = summaries[-1]['lines'] if summaries else []
+        folds = [l for l in lines if re.match(r'Branch \d+: fold \(LP \d+\) at ri = ', l)]
+        stopped = [l for l in folds if re.search(r'; stopped at point \d+: parameter ri reached limits\.parameter_(min|max) \(', l)]
+        follow = [l for l in lines if re.fullmatch(r'From LP \d+: two-parameter fold continuation', l)]
+        check('W860: the run says what each branch found and why it stopped, in the summary and autoX\'s Output (%s)' % lines[:2],
+              len(summaries) == 1 and len(folds) >= 1 and len(stopped) == len(folds), str(lines)[:400])
+        check('W860: each fold found is followed as a two-parameter fold continuation, the table autox.run and hello use (%s)' % follow,
+              len(follow) == len(folds) >= 1, str(lines)[:400])
+        check('W860: follow all branches is on and nothing found starts a run from a branch point or Hopf point, so the run says so once, last',
+              lines.count('No branch point or Hopf point to follow') == 1 and lines[-1] == 'No branch point or Hopf point to follow', str(lines)[-200:])
+    finally:
+        s.close()
+
+
+INDEPENDENT_SECTIONS = {'replace': check_replace_answer, 'export': check_export_several, 'options': check_options_panels, 'atomic': check_atomic_commands, 'equilibria': check_equilibrium_settings, 'registry': check_registry, 'branchjobs': check_autox_branch_jobs, 'session': check_session_commands, 'data': check_data_value_set, 'kinescope': check_kinescope_animation_array_plot, 'firstpoint': lambda: (check_autox_first_point_stability(), check_autox_orbit_first_points(), check_autox_not_applicable()), 'stops': lambda: (check_stops(), check_autox_stops(), check_autox_starts(), check_run_summary(), check_script_refused_run(), check_script_unknown_option(), check_script_repeated_run(), check_script_hopf_cycles_replace(), check_autox_two_parameter_starts(), check_autox_periodic_start_kind(), check_autox_registry(), check_fit_stops(), check_event_count_note(), check_autox_restart_file_stops(), check_autox_multiplier_note(), check_autox_singular_pivot())}
 if args.only:
     for name in args.only.split(','):
         if name not in INDEPENDENT_SECTIONS:

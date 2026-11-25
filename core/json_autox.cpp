@@ -599,6 +599,53 @@ void j_autox_joined(const std::vector<XppJoinedJob> &jobs)
     send_buf(b);
 }
 
+/* the autox.summary event: what a run's end found, per branch, what can be followed from it, and the lines autoX's Output shows */
+void j_autox_summary(const XppRunSummary &summary)
+{
+    std::string b = xpp::events::open(xpp::events::AUTOX_SUMMARY);
+    BUF_LIT(b, ",\"branches\":[");
+    for (std::size_t i = 0; i < summary.branches.size(); ++i) {
+        const XppRunBranch &br = summary.branches[i];
+        buf_format(b, "{}{{\"br\":{:d},\"found\":[", i ? "," : "", br.br);
+        for (std::size_t k = 0; k < br.found.size(); ++k) {
+            const XppRunFound &f = br.found[k];
+            buf_format(b, "{}{{\"sym\":", k ? "," : "");
+            buf_str(b, f.sym);
+            buf_format(b, ",\"lab\":{:d},\"name\":", f.lab);
+            buf_str(b, f.name);
+            b += ",\"par\":";
+            buf_str(b, f.par);
+            b += ",\"x\":";
+            buf_num(b, f.x, 16);
+            b += '}';
+        }
+        b += "],\"stop\":";
+        if (br.stopped) {
+            b += "{\"why\":";
+            buf_str(b, br.why);
+            buf_format(b, ",\"pt\":{:d},\"text\":", br.pt);
+            buf_str(b, br.text);
+            b += '}';
+        } else {
+            b += "null";
+        }
+        b += '}';
+    }
+    BUF_LIT(b, "],\"follow\":[");
+    for (std::size_t i = 0; i < summary.follow.size(); ++i) {
+        const XppRunFollow &f = summary.follow[i];
+        buf_format(b, "{}{{\"sym\":", i ? "," : "");
+        buf_str(b, f.sym);
+        buf_format(b, ",\"lab\":{:d},\"kinds\":", f.lab);
+        buf_str_array(b, f.kinds);
+        b += '}';
+    }
+    BUF_LIT(b, "],\"lines\":");
+    buf_str_array(b, summary.lines);
+    b += '}';
+    send_buf(b);
+}
+
 int j_autox_check_abort(int *iflag)
 {
     *iflag = 0;

@@ -12,6 +12,9 @@
 
 #include "autox_run.h"
 #include "autox_jobs.h"
+#include "autox_stop.h"
+#include "diagram.h"
+#include <cstdlib>
 #include "expr_decode.h"
 #include "model.h"
 #include "model_place.h"
@@ -746,7 +749,8 @@ Result<> autox_run_check(const AutoxParts &s, const AutoxRunRequest &request, co
   return {};
 }
 
-Result<> autox_run_start(AutoxParts s, const AutoxRunRequest &request)
+/* the run itself: its start checked and set up, then autoX runs (autox_run_start says what it found) */
+static Result<> start_run(AutoxParts s, const AutoxRunRequest &request)
 {
   AutoxState &a = *s.autox_state;
   if(auto checked=autox_run_check(s,request); !checked)return checked;
@@ -786,6 +790,120 @@ Result<> autox_run_start(AutoxParts s, const AutoxRunRequest &request)
   return run_from_point(s, request, row.point, family);
 }
 
+std::vector<const char *> autox_run_kind_list(unsigned kinds)
+{
+  std::vector<const char *> names;
+  for (std::size_t k = 0; k < autox_run_kind_names.size(); ++k)
+    if (kinds & (1u << k)) names.push_back(autox_run_kind_names[k]);
+  return names;
+}
+
+namespace {
+
+/* a point type's name as the text says it: "branch point" */
+std::string words(std::string_view name)
+{
+  std::string text(name);
+  std::replace(text.begin(), text.end(), '_', ' ');
+  return text;
+}
+
+/* a point found on a branch, in words: "fold (LP 23) at hfix = 0.2701" */
+std::string found_text(const XppRunFound &f)
+{
+  std::string text = xpp::format("{} ({} {})", words(f.name), f.sym, f.lab);
+  if (!f.par.empty()) text += xpp::format(" at {} = {}", f.par, xpp::number(f.x));
+  return text;
+}
+
+/* what a run's end says (W860): per branch the points the run stored on it, the special ones among them with the value
+   of their continuation parameter, why the branch ended (its own branch end), and what can be followed from each point
+   found: the kinds its type starts in the table above. first is the diagram's first point of the run. */
+XppRunSummary summarize_run(const AutoxParts &s, std::size_t first)
+{
+  XppRunSummary out;
+  const AutoxState &a = *s.autox_state;
+  bool followable = false; /* a found point a follow-all-branches run continues from: a branch point, a cycle's or a Hopf point */
+  const std::size_t count = diagram_stored_points(s);
+  for (std::size_t i = first; i < count; ++i) {
+    const DIAGRAM &p = s.diagram->points[i];
+    const long br = std::abs(static_cast<long>(p.ibr));
+    auto branch = std::find_if(out.branches.begin(), out.branches.end(), [br](const XppRunBranch &b) { return b.br == br; });
+    if (branch == out.branches.end()) {
+      out.branches.push_back(XppRunBranch{br, {}});
+      branch = out.branches.end() - 1;
+    }
+    const AutoxPointKind kind = p.itp.kind;
+    if (kind == AutoxPointKind::Regular || kind == AutoxPointKind::Output || kind == AutoxPointKind::End || kind == AutoxPointKind::Pending) continue;
+    followable = followable || kind == AutoxPointKind::BranchPoint || kind == AutoxPointKind::CycleBranch || kind == AutoxPointKind::Hopf;
+    XppRunFound f;
+    f.sym = std::string(autox_point_kind_mark(kind));
+    f.lab = p.lab;
+    f.name = std::string(autox_point_kind_name(kind));
+    const char *par = p.parameter_indices.empty() ? nullptr : autox_par_name(s, p.parameter_indices[0]);
+    f.par = par ? par : "";
+    f.x = p.par.empty() ? NAN : p.par[0];
+    branch->found.push_back(f);
+    const GRABPT g = autox_point_data(p);
+    const std::vector<const char *> kinds = autox_run_kind_list(autox_run_row_for(g).kinds);
+    if (kinds.empty()) continue;
+    XppRunFollow follow{f.sym, f.lab, {}};
+    std::string kinds_text; /* "two-parameter", or "equilibrium or two-parameter" */
+    for (const char *k : kinds) {
+      follow.kinds.emplace_back(k);
+      std::string name(k);
+      std::replace(name.begin(), name.end(), '_', '-');
+      kinds_text += (kinds_text.empty() ? "" : " or ") + name;
+    }
+    out.lines.push_back(xpp::format("From {} {}: {} {} continuation", f.sym, f.lab, kinds_text, words(autox_run_row_for(g).point)));
+    out.follow.push_back(std::move(follow));
+  }
+  /* the branch ends of this run: each branch's last end says why it stopped */
+  for (XppRunBranch &branch : out.branches) {
+    for (const AutoxBranchEnd &end : a.stop.ends) {
+      if (end.br != branch.br) continue;
+      branch.stopped = true;
+      branch.why = end.key;
+      branch.pt = end.pt;
+      branch.text = end.text;
+    }
+  }
+  /* the lines autoX's Output shows, branch by branch, then what follows; the same text the event carries */
+  std::vector<std::string> lines;
+  for (const XppRunBranch &branch : out.branches) {
+    std::string text = xpp::format("Branch {}: ", branch.br);
+    if (branch.found.empty()) text += "no special point found";
+    for (std::size_t k = 0; k < branch.found.size(); ++k) text += (k ? "; " : "") + found_text(branch.found[k]);
+    if (branch.stopped) text += xpp::format("; stopped at point {}: {}", branch.pt, branch.text);
+    lines.push_back(std::move(text));
+  }
+  lines.insert(lines.end(), out.lines.begin(), out.lines.end());
+  if (a.follow_all_branches && a.stop.followed == 0 && !followable && !out.branches.empty())
+    lines.push_back("No branch point or Hopf point to follow");
+  out.lines = std::move(lines);
+  return out;
+}
+
+} // namespace
+
+/* a run ends: what it found and can be followed from is logged in autoX's Output and sent (autox.summary), whatever ended
+   the run (its start refused, an error, a stop: what it stored says what it found) */
+Result<> autox_run_start(AutoxParts s, const AutoxRunRequest &request)
+{
+  AutoxState &a = *s.autox_state;
+  a.stop.ends.clear();
+  a.stop.followed = 0;
+  const std::size_t before = diagram_stored_points(s);
+  const Result<> ran = start_run(s, request);
+  if (diagram_stored_points(s) > before || !a.stop.ends.empty()) {
+    const std::size_t first = request.replace_diagram && !request.from_point ? 0 : before;
+    const XppRunSummary summary = summarize_run(s, first);
+    for (const std::string &line : summary.lines) xpp::log_autox("{}\n", line);
+    autox_summary(summary);
+  }
+  return ran;
+}
+
 /* ---- the Run key: XPPAUT's questions ---- */
 
 namespace {
@@ -805,11 +923,10 @@ void append_kinds(std::string &out, unsigned kinds)
 {
   out += '[';
   bool first = true;
-  for (std::size_t k = 0; k < autox_run_kind_names.size(); ++k) {
-    if (!(kinds & (1u << k))) continue;
+  for (const char *name : autox_run_kind_list(kinds)) {
     if (!first) out += ',';
     first = false;
-    json_append_string(out, autox_run_kind_names[k]);
+    json_append_string(out, name);
   }
   out += ']';
 }
