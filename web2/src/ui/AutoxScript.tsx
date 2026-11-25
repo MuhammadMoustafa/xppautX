@@ -6,6 +6,7 @@ import {BUSY_TITLE, useMay, useSession, useStore} from './context';
 import {useCommandLabel} from './CommandButton';
 import {ShownName} from './CutText';
 import {startText, unfinishedStart} from '../store/autoxScript';
+import {choiceLabel} from '../store/fieldKinds';
 
 export function AutoxScript() {
   const session = useSession();
@@ -23,17 +24,19 @@ export function AutoxScript() {
         {script.runs.map((run, i) => {
           const waiting = unfinishedStart(script.runs, run);
           const runOff = off || waiting !== null;
+          const state = run.done ? 'done' : run.error ? 'error' : run.skipped ? 'skipped' : '';
           return (
-            <li key={`${i}-${run.name}`} class="autox-script-run" data-script-run={run.name} data-done={run.done ? 'true' : 'false'} data-error={run.error ? 'true' : 'false'}>
+            <li key={`${i}-${run.name}`} class="autox-script-run" data-script-run={run.name} data-done={run.done ? 'true' : 'false'} data-state={state}>
               <span class="autox-script-number">{i + 1}</span>
               <span class="autox-script-name"><ShownName name={run.name} copy={false} /></span>
               <span class="autox-script-from muted">{startText(run.from)}</span>
-              <span class="autox-script-state">{run.done ? 'Done' : run.error ? 'Error' : run.skipped ? 'Skipped' : ''}</span>
-              {run.error && <span class="autox-script-error" role="alert">{run.error}</span>}
-              {run.skipped && <span class="autox-script-skipped muted">{run.skipped}</span>}
+              <span class="autox-script-state">{state && choiceLabel(state)}</span>
               <button class="small" disabled={runOff} aria-label={`Run ${run.name}`} data-script-run-button={run.name}
                 title={waiting !== null ? `Waits for run "${waiting}" to be done` : off ? BUSY_TITLE : undefined}
                 onClick={() => session.send({cmd: 'autox.run_script', run: run.name})}>Run</button>
+              {/* after Run, so the message takes a line of its own and Run stays on the run's row */}
+              {run.error && <span class="autox-script-error" role="alert">{run.error}</span>}
+              {run.skipped && <span class="autox-script-skipped muted">{run.skipped}</span>}
             </li>
           );
         })}

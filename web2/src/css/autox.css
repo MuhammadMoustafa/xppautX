@@ -172,7 +172,8 @@
 .autox-script-name { flex: 0 1 9rem; min-width: 0; overflow-wrap: anywhere; }
 .autox-script-from { flex: 1 1 10rem; min-width: 0; overflow-wrap: anywhere; }
 .autox-script-state { color: var(--ok); font-weight: 600; }
-.autox-script-run[data-error="true"] .autox-script-state { color: var(--danger); }
+.autox-script-run[data-state="error"] .autox-script-state { color: var(--danger); }
+.autox-script-run[data-state="skipped"] .autox-script-state { color: var(--fg-muted); }
 .autox-script-error { flex: 1 1 100%; min-width: 0; overflow-wrap: anywhere; color: var(--danger); }
 .autox-script-skipped { flex: 1 1 100%; min-width: 0; overflow-wrap: anywhere; }
 .autox-script-tools { margin-top: var(--space-1); }

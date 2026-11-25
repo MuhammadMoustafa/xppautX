@@ -76,3 +76,10 @@ The maintainer chose (b), 2026-11-24 (the recommendation): follow all branches s
 on a branch the diagram already holds is not made. Old scripts keep their meaning; bif_current no longer traces "rest down" again. The
 repeat (b) leaves inside one run, a Hopf point's cycles traced in both directions (bif_current's 476-point branch twice), is W868 (#950).
 The second direction a run was never asked for ("h up" going down) is what follow all branches means, and stays.
+
+## The Script panel (pictures in this folder)
+
+A refused run (`error-*`: pvn_slowfast_hcn's "h down", started outside the window) shows **Error** in the danger colour and the
+message on a line of its own; a run not made (`skipped-*`: pvn_bif_current's "rest down", on rest up's branch) shows **Skipped**
+in the muted colour and why. Each at 1280, 768 and 375 wide, light and dark. The review moved the message after the row's Run, so
+Run stays on its run's line, and took Skipped out of Done's green.
