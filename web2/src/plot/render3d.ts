@@ -131,7 +131,7 @@ export function draw3d(
   g.lineJoin = 'round';
   for (const c of model.curves) {
     if (c.visible === false) continue;
-    g.strokeStyle = c.cssColor ?? cssColor(c.color);
+    g.strokeStyle = cssColor(c.cssColor ?? c.color);
     g.fillStyle = g.strokeStyle;
     if (drawsLine(c.style)) {
       g.lineWidth = c.highlighted ? Math.max(3.5, c.style.width + 2) : c.style.width;

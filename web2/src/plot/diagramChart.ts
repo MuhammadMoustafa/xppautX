@@ -185,7 +185,7 @@ export class DiagramChart {
     const series: uPlot.Series[] = m.curves.map(c => ({
       label: `Branch ${c.branch}`,
       /* read when drawn, as the axes are: a theme switch sets --fg after the chart is made */
-      stroke: () => c.cssColor ?? cssColor(c.color), show: c.visible !== false,
+      stroke: () => cssColor(c.cssColor ?? c.color), show: c.visible !== false,
       width: c.width,
       dash: c.dashed ? DASH : undefined,
       paths: this.linePath,
@@ -359,7 +359,7 @@ export class DiagramChart {
     if (!u || !m) return null;
     return {
       curves: m.curves.map(c => ({branch: c.branch, type: c.type, kind: c.kind, stable: c.stable, which: c.which,
-        points: c.xs.length, dashed: c.dashed, width: c.width, color: c.cssColor ?? cssColor(c.color), hopf: c.hopf,
+        points: c.xs.length, dashed: c.dashed, width: c.width, color: cssColor(c.cssColor ?? c.color), hopf: c.hopf,
         first: [c.xs[0], c.ys[0], c.idx[0]]})),
       labels: m.labels.map(l => ({point: l.point, lab: l.lab, sym: l.sym, x: l.x, y: l.y, y2: l.y2})),
       named: this.named,

@@ -258,7 +258,7 @@ export class Chart {
       if (!drawsPoints(c.style) || !this.visible[i]) return;
       const fill = new Path2D(), stroke = new Path2D();
       tracePoints(c.xs, c.ys, 0, c.xs.length - 1, f, markerRadius(c.style) * r, (x, y) => addMarker(fill, stroke, c.style, x, y, r));
-      const css = c.cssColor ?? cssColor(c.color);
+      const css = cssColor(c.cssColor ?? c.color);
       ctx.fillStyle = css;
       ctx.fill(fill);
       ctx.strokeStyle = css;
@@ -280,7 +280,7 @@ export class Chart {
     this.vertices = m.curves.map(() => null);
     /* the theme's colors are read when drawn (plotAxis), a theme switch's variables being set after the chart is made */
     const series: uPlot.Series[] = m.curves.map((c, i) => {
-      const color = c.cssColor ?? cssColor(c.color);
+      const color = cssColor(c.cssColor ?? c.color);
       const s: uPlot.Series = {label: c.label, stroke: color, width: c.style.width, dash: dashPattern(c.style), show: this.visible[i],
         points: {show: false}};
       /* a time plot's too: uPlot's own walks every row at every draw (W82); the markers are drawn apart (drawCurveMarkers) */
@@ -509,7 +509,7 @@ export class Chart {
           const paths = run.curves.filter(c => c.visible !== false).map(c => {
             const p = new Path2D(), fill = new Path2D(), marks = new Path2D();
             drawn += traceCurve(c.xs, c.ys, c.style, f, r, p, fill, marks);
-            return {p, fill, marks, css: c.cssColor ?? cssColor(c.color), style: c.style};
+            return {p, fill, marks, css: cssColor(c.cssColor ?? c.color), style: c.style};
           });
           cached = {frame: f, dark: this.dark, drawn, paths};
           this.runPaths.set(run, cached);
@@ -709,7 +709,7 @@ export class Chart {
       if (drawsLine(c.style)) tracePolyline(c.xs, c.ys, f, p);
       else tracePoints(c.xs, c.ys, 0, c.xs.length - 1, f, (markerRadius(c.style) + 1) * uPlot.pxRatio,
         (x, y) => { p.moveTo(x + 3, y); p.arc(x, y, 3 * uPlot.pxRatio, 0, Math.PI * 2); });
-      ctx.strokeStyle = c.cssColor ?? cssColor(c.color);
+      ctx.strokeStyle = cssColor(c.cssColor ?? c.color);
       ctx.lineWidth = 3.5 * uPlot.pxRatio;
       ctx.stroke(p);
     });
@@ -752,7 +752,7 @@ export class Chart {
     return {
       mode: m.mode,
       curves: m.curves.map((c, i) => ({label: c.label, points: c.xs.length, visible: this.visible[i],
-        color: c.cssColor ?? cssColor(c.color)})),
+        color: cssColor(c.cssColor ?? c.color)})),
       ...this.ranges(),
       xLabel: m.xLabel,
       yLabel: m.yLabel,

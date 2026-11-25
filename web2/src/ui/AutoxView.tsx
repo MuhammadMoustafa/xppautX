@@ -224,7 +224,7 @@ function BranchList({entries, appearance, rows, labels, points, notes, script, r
         const first = appearance[row.entries[0]];
         const off = row.entries.every(k => appearance[k]?.visible === false);
         const curves = row.entries.flatMap(k => byKey.get(k)?.curves ?? []);
-        const color = first?.color ?? cssColor(row.color);
+        const color = first?.color ?? row.color;
         const name = first?.label ?? row.name;
         const b = row.branch === null ? null : notes[row.branch] ?? null;
         const range = row.lo !== null && row.hi !== null && axes ? `${axes.xlabel} ${sixSig(row.lo)} … ${sixSig(row.hi)}` : '';
@@ -243,7 +243,7 @@ function BranchList({entries, appearance, rows, labels, points, notes, script, r
                   {off && <path d="M2 14L14 2" />}
                 </svg>
               </button>
-              <span class="swatch" style={{background: color}} aria-hidden="true" />
+              <span class="swatch" style={{background: cssColor(color)}} aria-hidden="true" />
               <span class="autox-branch-name"><ShownName name={name} copy={false} /></span>
               <span class="autox-branch-kind">{row.kind}{from && `, from ${from}`}</span>
               <span class="autox-branch-range">{range}</span>

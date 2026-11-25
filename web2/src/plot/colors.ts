@@ -1,25 +1,39 @@
 /* Colors as the core says them (core/colormap.h): `#rrggbb`, `#rrggbbaa` (alpha only when not opaque) or
    `foreground`, the color the page draws dark on a light theme and light on a dark one. Every color of a
-   curve, a mark, a nullcline or a text arrives in that form and is drawn as it is (CSS reads `#rrggbbaa`),
-   the foreground by the theme (--fg); the pickers give it back in the same form. */
+   curve, a mark, a nullcline or a text arrives in that form. It is drawn as it is, except on the dark theme,
+   where a color too dark to read against the background is lightened (cssColor); the foreground by the
+   theme (--fg); the pickers give back the color as given (splitColor, joinColor). */
 import type {CoreColor} from '../protocol/types';
-import {cssVar} from './css';
+import {cssVar, darkTheme} from './css';
 
 export type {CoreColor};
 
-/** the color the canvas or CSS draws `c` in; `foreground` is the theme's --fg (tokens.css), read from the page */
+/** WCAG 2.2's contrast for a graphic (1.4.11, 3:1): a curve on the dark theme's background is lightened until it reaches this */
+export const GRAPHIC_CONTRAST = 3;
+/** how far one step raises a too-dark color's HSL lightness (0 to 1): small, so the lightening stops just past GRAPHIC_CONTRAST */
+const LIGHTEN_STEP = 0.01;
+
+/** the color the canvas or CSS draws `c` in: `foreground` is the theme's --fg (tokens.css), read from the page;
+    on the dark theme a color that does not reach GRAPHIC_CONTRAST against --bg is lightened (lightenForBackground) */
 export function cssColor(c: CoreColor): string {
-  return c === 'foreground' ? cssVar('--fg') : c;
+  if (c === 'foreground') return cssVar('--fg');
+  const bg = darkTheme() ? cssToHex(cssVar('--bg')) : null;
+  return bg ? lightenForBackground(c, bg) : c;
 }
 
 const CORE_HEX = /^#([0-9a-f]{6})([0-9a-f]{2})?$/i;
 
+/** a color as a picker has it: `foreground` as the theme's --fg, anything else as the core wrote it (never lightened) */
+function givenColor(c: CoreColor): string {
+  return c === 'foreground' ? cssVar('--fg') : c;
+}
+
 /** a color as the core writes it: `foreground`, `#rrggbb` or `#rrggbbaa` */
 export const CORE_COLOR = /^(foreground|#[0-9a-f]{6}([0-9a-f]{2})?)$/i;
 
-/** a color as a picker has it: its `#rrggbb` and its alpha, 0 to 255 (the foreground: the theme's, opaque) */
+/** a color as a picker has it: its `#rrggbb` and its alpha, 0 to 255 (the foreground: the theme's, opaque); the color as given, not lightened */
 export function splitColor(c: CoreColor): {hex: string; alpha: number} {
-  const m = CORE_HEX.exec(cssColor(c));
+  const m = CORE_HEX.exec(givenColor(c));
   return m ? {hex: '#' + m[1].toLowerCase(), alpha: m[2] ? parseInt(m[2], 16) : 255} : {hex: '#000000', alpha: 255};
 }
 
@@ -27,6 +41,43 @@ export function splitColor(c: CoreColor): {hex: string; alpha: number} {
 export function joinColor(hex: string, alpha: number): CoreColor {
   const a = Math.max(0, Math.min(255, Math.round(alpha)));
   return hex.toLowerCase() + (a === 255 ? '' : a.toString(16).padStart(2, '0'));
+}
+
+/** a `#rrggbb`'s WCAG relative luminance, 0 (black) to 1 (white) */
+export function relativeLuminance(hex: string): number {
+  const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255)
+    .map(v => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/** WCAG's contrast ratio of two `#rrggbb` colors, 1 (none) to 21 */
+export function contrastRatio(a: string, b: string): number {
+  const x = relativeLuminance(a), y = relativeLuminance(b);
+  return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+}
+
+/** `#rrggbb` (or `#rrggbbaa`, its alpha kept) lightened in HSL, hue and saturation kept, until its contrast against
+    `bg` (`#rrggbb`) reaches GRAPHIC_CONTRAST; a color that already does, or is not a hex color, comes back as it was */
+export function lightenForBackground(c: string, bg: string): string {
+  const m = CORE_HEX.exec(c);
+  if (!m || contrastRatio('#' + m[1], bg) >= GRAPHIC_CONTRAST) return c;
+  const [h, s, l0] = toHsl('#' + m[1]);
+  let l = l0, out = '#' + m[1].toLowerCase();
+  while (contrastRatio(out, bg) < GRAPHIC_CONTRAST && l < 1) {
+    l = Math.min(1, l + LIGHTEN_STEP);
+    out = cssToHex(`hsl(${h * 360} ${s * 100}% ${l * 100}%)`) ?? out;
+  }
+  return out + (m[2] ?? '');
+}
+
+/** `#rrggbb` as hue (0 to 1), saturation and lightness (0 to 1) */
+function toHsl(hex: string): [number, number, number] {
+  const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255);
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2;
+  if (max === min) return [0, 0, l];
+  const d = max - min, s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  const h = max === r ? (g - b) / d + (g < b ? 6 : 0) : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return [h / 6, s, l];
 }
 
 const HEX = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;

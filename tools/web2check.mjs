@@ -2527,6 +2527,57 @@ async function autoxLiveJobs() {
 }
 
 /* ---- the view after a run (W859): the branch list, the fit at the run's end with Undo, the chips and the eye ----------- */
+/* W874 (#956): on the dark theme a curve too dark to read on the page is drawn lighter (web2/src/plot/colors.ts, the hue kept); the
+   light theme draws the core's own color, and a theme switch redraws the diagram. Read from __xpp.diagram() (the colors and the draw
+   count), never pixels. The unstable periodic orbits are the core's #0000ff, which is too dark for the dark background. */
+async function setPageTheme(want) {
+  for (let i = 0; i < 3 && (await S('s.theme')) !== want; i++) await cdp.eval(`document.querySelector('.theme-toggle').click()`);
+  return (await S('s.theme')) === want;
+}
+/* the fixed point's equilibrium run, then the periodic branch from its Hopf point: the diagram holds unstable periodic curves (type 4) */
+async function autoxUnstablePeriodic() {
+  await openAutoxAtFixedPoint();
+  await autoxRun('equilibrium');
+  await cdp.eval(`__xpp.send({cmd: 'autox.run', kind: 'periodic', type: 'hopf', index: 1, 'output.every': 5})`);
+  await until(`!s.busy && !s.ask && __xpp.diagram().curves.some(c => c.type === 4)`, 'an unstable periodic branch', 60000 * SLOW);
+}
+/* W874 (#956): the autoX view after a run with unstable periodic orbits, the whole page at 375, 768 and 1280 wide, light and dark, in
+   XPP_SHOTS=folder (--only w874shots; XPP_SHOT_PREFIX names the run). Pictures only, never a check. */
+async function autoxDarkShots() {
+  const out = process.env.XPP_SHOTS;
+  if (!out) throw new Error('w874shots: set XPP_SHOTS to the folder the pictures go to');
+  fs.mkdirSync(out, {recursive: true});
+  await desktopMetrics();
+  await autoxUnstablePeriodic();
+  for (const [size, width, height] of [['375', 375, 812], ['768', 768, 1024], ['1280', 1280, 860]])
+    for (const scheme of ['light', 'dark']) {
+      await cdp.send('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile: width < 500});
+      await cdp.send('Emulation.setEmulatedMedia', {features: [{name: 'prefers-color-scheme', value: scheme}]});
+      await setPageTheme(scheme);
+      await rendered();
+      fs.writeFileSync(path.join(out, `${process.env.XPP_SHOT_PREFIX || 'autox'}-periodic-${size}-${scheme}.jpg`),
+        Buffer.from((await cdp.send('Page.captureScreenshot', {format: 'jpeg', quality: 85})).data, 'base64'));
+    }
+  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
+}
+async function autoxDarkColors() {
+  await desktopMetrics();
+  await autoxUnstablePeriodic();
+  const unstable = `__xpp.diagram().curves.filter(c => c.type === 4)`;
+  const light = await setPageTheme('light');
+  const lightColors = await cdp.eval(`${unstable}.map(c => c.color)`);
+  check('W874: the light theme draws unstable periodic curves in the core\'s #0000ff', light && lightColors.length > 0 && lightColors.every(c => c === '#0000ff'),
+    JSON.stringify({light, lightColors}));
+  const draws = await cdp.eval('__xpp.diagram().draws');
+  const dark = await setPageTheme('dark');
+  await until(`__xpp.diagram().draws > ${draws}`, 'the dark theme redraws the diagram', 20000 * SLOW);
+  const darkRead = await cdp.eval(`(() => { const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+    return ${unstable}.map(c => [c.color, __xpp.contrast(c.color, bg)]); })()`);
+  check('W874: on the dark theme every unstable periodic curve reads: 3:1 or more against --bg, lightened from #0000ff',
+    dark && darkRead.length > 0 && darkRead.every(([c, r]) => r >= 3 && c !== '#0000ff' && /^#[0-9a-f]{6}$/i.test(c)), JSON.stringify({dark, darkRead}));
+  await setPageTheme('light');
+}
+
 async function autoxBranchList(dir) {
   await desktopMetrics();
   check('W859: the page connects', await until('s.hello && !s.busy', 'hello'));
@@ -8997,7 +9048,7 @@ async function main() {
       await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
     }
     /* every section name run() is asked about: an --only that names none of them ran nothing, which is a failure, never "all passed" */
-    const asked = new Set(['shots', 'popoutshots', 'splitshots', 'settingsshots', 'pinshots', 'exportshots', 'specialshots']);
+    const asked = new Set(['shots', 'popoutshots', 'splitshots', 'settingsshots', 'pinshots', 'exportshots', 'specialshots', 'w874shots']);
     const run = name => { asked.add(name); return !opt.only || opt.only.split(',').includes(name); };
     if (run('desktop')) await session(ODE, async (dir) => {
       await desktop(want);
@@ -9025,6 +9076,7 @@ async function main() {
     if (run('autoxmarks')) await session(ODE, autoxMarks);
     if (run('autox')) await session(ODE, autoxView);
     if (run('autox')) await session(ODE, autoxBranchList);
+    if (run('autox')) await session(ODE, autoxDarkColors);
     if (run('autox')) await session(HEAVY_ODE, autoxStopRace);
     if (run('autox')) await session(AB_ODE, autoxLiveJobs);
     if (run('autoxviews')) await session(ODE, autoxViews);
@@ -9056,6 +9108,7 @@ async function main() {
     if (opt.only && opt.only.split(',').includes('shots')) await session(AB_ODE, autoxScriptShots);
     if (opt.only && opt.only.split(',').includes('exportshots')) await session(ODE, exportShots, ['command:1: No direction field is shown', 'command:1: Nothing to save']); /* the pictures show a field that is not computed yet */
     if (opt.only && opt.only.split(',').includes('specialshots')) await session(ODE, specialPointsShots);
+    if (opt.only && opt.only.split(',').includes('w874shots')) await session(ODE, autoxDarkShots);
     if (opt.only && opt.only.split(',').some(n => n === 'shots' || n === 'popoutshots')) await session(ODE, popOutShots);
     if (opt.only && opt.only.split(',').some(n => n === 'shots' || n === 'settingsshots')) await session(ODE, settingsWindowShots);
     if (opt.only && opt.only.split(',').some(n => n === 'shots' || n === 'pinshots')) await session(ODE, pinsShots, [/Pin "Figures"|needs an array plot|Invalid choice/]);

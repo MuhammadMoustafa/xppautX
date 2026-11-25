@@ -161,7 +161,7 @@ export function Plot3DView({win, dark, shown, focused, group, tabbed, windowRow}
               onMouseEnter={() => setHovered(i)} onMouseLeave={() => setHovered(null)}
               onClick={() => setAppearance(a => ({...a, [traceKeys[i]]: {...a[traceKeys[i]], visible: c.visible === false}}))}
               onDblClick={() => setEditing(i)}>
-              <span class="swatch" style={{background: c.cssColor ?? cssColor(c.color)}} aria-hidden="true" />
+              <span class="swatch" style={{background: cssColor(c.cssColor ?? c.color)}} aria-hidden="true" />
               <ShownName name={c.label} copy={false} />
             </button>
           ))}
@@ -199,7 +199,7 @@ export function Plot3DView({win, dark, shown, focused, group, tabbed, windowRow}
         )}
       </div>
       {editing !== null && model && <TraceDialog label={model.curves[editing].label}
-        color={model.curves[editing].cssColor ?? cssColor(model.curves[editing].color)} close={() => setEditing(null)}
+        color={model.curves[editing].cssColor ?? model.curves[editing].color} close={() => setEditing(null)}
         apply={(label, color) => { setAppearance(a => ({...a, [traceKeys[editing]]: {...a[traceKeys[editing]], label, color}})); setEditing(null); }} />}
       <p id="plot-3d-keys-help" class="visually-hidden">
         {`Drag turns the view; the arrow keys turn it ${KEY_STEP} degrees at a time, Shift ${KEY_STEP_FINE}.`}

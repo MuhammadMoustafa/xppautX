@@ -425,8 +425,8 @@ export function PlotView({win, dark, shown, focused, group, tabbed, windowRow}: 
       onMouseEnter={() => chart.current?.highlight({run, curve})}
       onMouseLeave={() => chart.current?.highlight(null)}
       onClick={() => setAppearance(a => ({...a, [key]: {...a[key], visible: c.visible === false}}))}
-      onDblClick={() => setEditing({key, label: c.label, color: c.cssColor ?? cssColor(c.color)})}>
-      <span class="swatch" style={{background: c.cssColor ?? cssColor(c.color)}} aria-hidden="true" />
+      onDblClick={() => setEditing({key, label: c.label, color: c.cssColor ?? c.color})}>
+      <span class="swatch" style={{background: cssColor(c.cssColor ?? c.color)}} aria-hidden="true" />
       <ShownName name={c.label} copy={false} />{run >= 0 && <small> · run {keys[run].slice(4)}</small>}
     </button>
   );

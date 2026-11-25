@@ -4,3 +4,8 @@ export function cssVar(name: string): string {
   if (!value) throw new Error(`Missing theme variable ${name}`);
   return value;
 }
+
+/** whether the page shows the dark theme now: ui/theme.ts sets `data-theme` on <html> while it renders */
+export function darkTheme(): boolean {
+  return document.documentElement.dataset.theme === 'dark';
+}

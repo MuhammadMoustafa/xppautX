@@ -13,8 +13,8 @@ export function useDark(theme: 'system' | 'light' | 'dark'): boolean {
     return () => m.removeEventListener('change', on);
   }, []);
   const dark = theme === 'dark' || (theme === 'system' && systemDark);
-  useEffect(() => {
-    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
-  }, [dark]);
+  /* set while the page renders, not in an effect: an effect runs after the charts' own effects, and a chart reads the
+     theme when it draws (plot/colors.ts cssColor), so on a switch they would draw the old theme's colors */
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
   return dark;
 }

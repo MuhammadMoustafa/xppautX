@@ -9,6 +9,7 @@ import {doneMessage, endLine, startLine, stepCommand, stoppedMessage, type Batch
 import {pinSteps, stepRun} from './pins';
 import type {BatchAction, BatchOutcome} from './store/batch';
 import {accumulateScroll, keyScroll} from './plot/aplotScroll';
+import {darkTheme} from './plot/css';
 import {bytesToBase64} from './plot/gif';
 import {setLineGeometry} from './plot/linestyle';
 import {setAnnotationGlyphs} from './plot/marks';
@@ -1504,7 +1505,7 @@ export class Session {
       screen, else an offscreen render of the same data); cancelled when
       there is nothing to render, as before this task */
   private answerPixels(ask: AskEvent): void {
-    const dark = document.documentElement.dataset.theme === 'dark';
+    const dark = darkTheme();
     let pixels: {w: number; h: number; rgb: Uint8ClampedArray} | null = null;
     if (typeof ask.film === 'number') {
       const frame = this.store.getState().kinescope.frames[ask.film];

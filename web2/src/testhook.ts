@@ -8,6 +8,7 @@
    CDP (tools/cdp.mjs: an injected PerformanceObserver and rAF timestamps),
    not through window.__xpp. */
 import {diagramChart} from './plot/diagramChart';
+import {contrastRatio} from './plot/colors';
 import {aniDrawInfo} from './ani/render';
 import {chartOf} from './plot/registry';
 import type {Session} from './session';
@@ -98,6 +99,8 @@ export function installTestHook(session: Session): void {
     /** view `view` of the autoX diagram's chart (the active view's by default): its curves, label
         marks and ranges (null while autoX is not shown) */
     diagram: (view?: number) => diagramChart(view ?? session.store.getState().diagram.active)?.info() ?? null,
+    /** the WCAG contrast of two `#rrggbb` colors, the page's own (plot/colors.ts): a check of a drawn curve's color against the background */
+    contrast: contrastRatio,
     /** every `diagram` event received, oldest first */
     diagramEvents: () => diagramEvents.slice(),
     send: (cmd: {cmd: string}) => session.send(cmd),
