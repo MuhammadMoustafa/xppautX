@@ -812,6 +812,7 @@ std::uint64_t values_fingerprint(const xpp::Session &s)
     }
     f.value(s.data_store->rows);
     f.value(s.data_store->current_time);
+    f.value(diagram_count(*s.diagram)); /* the autoX diagram the file keeps: a run's new points change the session (W880) */
     return f.result();
 }
 
@@ -911,13 +912,12 @@ bool xpp_session_changed(const xpp::Session &s)
 bool xpp_session_has_unsaved(const xpp::Session &s)
 {
     if (s.saved_session->file.empty()) return true;
-    return xpp_session_changed(s) || diagram_count(*s.diagram) != s.saved_session->diagram_points;
+    return xpp_session_changed(s);
 }
 
 void xpp_session_mark_clean(xpp::Session &s)
 {
     s.saved_session->clean = values_fingerprint(s);
-    s.saved_session->diagram_points = diagram_count(*s.diagram);
 }
 
 std::optional<std::string> xpp_session_snapshot(xpp::Session &s)
