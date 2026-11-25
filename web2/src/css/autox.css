@@ -161,11 +161,11 @@
 /* T26: the core's last message, as StatusBar.tsx's own .status-message */
 .autox-message, .autox-branch-head .autox-branch-kind { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* the script panel under the info strip (W684, ui/AutoxScript.tsx): each run in order with its start, Done and Run */
-.autox-script-runs { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--space-1); }
+.autox-script-runs { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--space-1); max-height: 12rem; overflow: auto; } /* W879: the list scrolls above the status bar */
 .autox-script-run { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); min-height: var(--target); }
 .autox-script-number { color: var(--fg-muted); font-variant-numeric: tabular-nums; }
-.autox-script-name { flex: 0 1 9rem; min-width: 0; overflow-wrap: anywhere; }
-.autox-script-from { flex: 1 1 10rem; min-width: 0; overflow-wrap: anywhere; }
+.autox-script-name { flex: 0 1 auto; max-width: 9rem; min-width: 0; overflow-wrap: anywhere; } /* its own width, so a start's text keeps its line (W879) */
+.autox-script-from { flex: 1 1 0; min-width: 0; overflow-wrap: anywhere; } /* no basis: Run keeps its line at 375 px (W879) */
 .autox-script-state { color: var(--ok); font-weight: 600; }
 .autox-script-run[data-state="error"] .autox-script-state { color: var(--danger); }
 .autox-script-run[data-state="skipped"] .autox-script-state { color: var(--fg-muted); }
@@ -293,6 +293,8 @@
 .autox-panel.in-group .autox-branch-rows { overflow: auto; min-height: 0; }
 @media (max-width: 47.99rem) {
   .autox-key-name, .autox-fit-range { display: none; }
+  /* a phone: the run list shows about one run and scrolls, Run all stays above the status bar (W879) */
+  .autox-script-runs { max-height: 4rem; }
 }
 @media (max-width: 79.99rem) {
   .autox-panel:not(.in-group) .autox-view { flex: 0 0 auto; }

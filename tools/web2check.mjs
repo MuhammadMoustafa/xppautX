@@ -3774,6 +3774,52 @@ async function autoxScriptCheck(dir) {
     && await cdp.eval(`[...document.querySelectorAll('[data-script-run]')].every(r => r.dataset.done === 'true')`));
 }
 
+/* W879: the script panel at 375 px: each run's Run stays on its row beside its name (no wrap to a line of its own), Run all
+   below the list, and the run list scrolls inside its own height, ending above the status bar. Data (rects), never pixels. */
+async function autoxScriptFitCheck(dir) {
+  await until('s.hello && !s.busy', 'hello');
+  fs.writeFileSync(path.join(dir, 'ab_fit.autox'), AB_SCRIPT);
+  await openFile('ab_fit.autox');
+  await until("s.ask && s.ask.kind === 'choice'", 'save first?');
+  await answerAsk({key: 'd'});
+  await requireUntil(`!s.busy && s.autoxScript.open && s.diagram.open && document.querySelectorAll('[data-script-run]').length === 2`, 'the autoX window with the Script panel');
+  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 375, height: 812, deviceScaleFactor: 1, mobile: true});
+  await rendered();
+  await cdp.eval(`document.querySelector('[data-script-toggle]').click()`);
+  await requireUntil(`!!document.querySelector('.autox-script[open]')`, 'the Script panel open at 375');
+  await rendered();
+  const fit = await cdp.eval(`(() => {
+    const runs = [...document.querySelectorAll('[data-script-run]')];
+    const row = runs.map(r => {
+      const btn = r.querySelector('[data-script-run-button]').getBoundingClientRect();
+      const name = r.querySelector('.autox-script-name').getBoundingClientRect();
+      return {sameLine: btn.top < name.bottom && btn.bottom > name.top, inRow: btn.right <= r.getBoundingClientRect().right + 1};
+    });
+    const list = document.querySelector('.autox-script-runs');
+    const status = document.querySelector('.autox-status').getBoundingClientRect();
+    const all = document.querySelector('[data-script-run-all]').getBoundingClientRect();
+    const sizes = {runAllBottom: all.bottom, runAllTop: all.top, viewport: window.innerHeight};
+    return {row, listScrolls: list.scrollHeight >= list.clientHeight, listBottom: list.getBoundingClientRect().bottom, statusTop: status.top,
+      runAllWidth: all.width, runAllBottom: sizes.runAllBottom, runAllTop: sizes.runAllTop, viewport: sizes.viewport, vw: document.documentElement.clientWidth, overflowX: document.documentElement.scrollWidth > document.documentElement.clientWidth};
+  })()`);
+  check('W879: at 375 px each Run sits on its run\'s line, inside the row', fit.row.every(r => r.sameLine && r.inRow), JSON.stringify(fit));
+  check('W879: at 375 px the run list ends above the status bar', fit.listBottom <= fit.statusTop + 1, JSON.stringify(fit));
+  /* the page scrolled until Run all clears the sticky status bar: then both buttons are above it and clickable */
+  const reach = await cdp.eval(`(() => {
+    const all = document.querySelector('[data-script-run-all]');
+    const status = document.querySelector('.autox-status');
+    /* the page's scroller: the nearest ancestor of Run all that scrolls, else the window */
+    let box = all.parentElement;
+    while (box && box !== document.body && !(/(auto|scroll)/.test(getComputedStyle(box).overflowY) && box.scrollHeight > box.clientHeight)) box = box.parentElement;
+    const by = Math.max(0, all.getBoundingClientRect().bottom - status.getBoundingClientRect().top + 4);
+    if (box && box !== document.body) box.scrollTop += by; else window.scrollBy(0, by);
+    const a = all.getBoundingClientRect(), st = status.getBoundingClientRect();
+    return {runAllBottom: a.bottom, statusTop: st.top, runAllWidth: a.width, scroller: box ? box.className : 'window', overflowX: document.documentElement.scrollWidth > document.documentElement.clientWidth};
+  })()`);
+  check('W879: at 375 px Run all clears the status bar once the page scrolls, and the page does not scroll sideways', reach.runAllWidth > 0 && reach.runAllBottom <= reach.statusTop + 1 && !reach.overflowX, JSON.stringify({fit, reach}));
+  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
+}
+
 /* W786 (#866): the export forms, the file question an export opens, and the same during a Play, at 375, 768 and 1280 wide, light and dark
    (with XPP_SHOTS=folder and --only exportshots; XPP_SHOT_PREFIX names the run, before or after). Pictures only, never a check. */
 async function exportShots(dir) {
@@ -3887,6 +3933,10 @@ async function autoxScriptShots(dir) {
     }
   };
   await frames('autox-script');
+  /* W879: the panel open (the Script button), its runs and Run all at each width */
+  await cdp.eval(`document.querySelector('[data-script-toggle]').click()`);
+  await requireUntil(`!!document.querySelector('.autox-script[open]')`, 'the Script panel open');
+  await frames('autox-script-open');
   await cdp.eval(`document.querySelector('[data-script-run-button="steady"]').click()`);
   await requireUntil(`!s.busy && s.autoxScript.runs[0].done`, 'steady done');
   await frames('autox-script-done');
@@ -9122,6 +9172,7 @@ async function main() {
     if (run('splitview')) await session(ODE, splitViewCheck);
     if (run('splitview')) await session(ODE, splitViewAutoxCheck);
     if (run('autox')) await session(AB_ODE, autoxScriptCheck);
+    if (run('autox')) await session(AB_ODE, autoxScriptFitCheck);
     if (run('labelmarks')) await session(path.join(top, 'examples/ode/mu26.odex'), autoxLabelMarks);
     if (run('popout')) await session(ODE, popOutCheck);
     if (run('dialogs')) await session(ODE, dialogsCheck, ['command:1: Total time must be a number of at least 0']);
