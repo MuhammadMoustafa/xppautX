@@ -127,6 +127,15 @@ void diagram_restore(xpp::AutoxParts s, std::deque<xpp::DIAGRAM> points)
   s.autox_state->diag_flag=true;
 }
 
+std::size_t diagram_remove_branch(xpp::AutoxParts s, int ibr)
+{
+  const std::size_t before=s.diagram->points.size();
+  std::erase_if(s.diagram->points,[&](const xpp::DIAGRAM &p){return std::abs(p.ibr)==ibr;});
+  int index=0;
+  for(xpp::DIAGRAM &p:s.diagram->points)p.index=index++;
+  return before-s.diagram->points.size();
+}
+
 void start_diagram(xpp::AutoxParts s, int n)
 {
   s.diagram->points.clear();

@@ -22,6 +22,9 @@
 #include "xpp_text.h"
 #include "xpp_ui.h"
 #include "expr_program.h"
+#include "diagram.h"
+#include "expr.h"
+#include "xpp_log.h"
 
 namespace xpp {
 
@@ -289,6 +292,29 @@ Result<> autox_start_at_homoclinic(AutoxParts s, const HomoclinicStart &start)
     
 Result<> autox_new_per(AutoxParts s) /* same for extending periodic  */
 {
+  /* a script's run from a Hopf point whose cycles a follow-all job already traced (W868, #950): the named run replaces that copy,
+     with its own options, and the copy goes before it stores its branch; a branch a named run made is never replaced */
+  if(s.autox_state->skip_run_on_branch&&s.autox_state->grabpt.itp.is(AutoxPointKind::Hopf)){
+    const int label=s.autox_state->grabpt.lab;
+    std::vector<int> copies;
+    for(const DIAGRAM &held:s.diagram->points){
+      const int ibr=std::abs(held.ibr);
+      if(held.from!=label||held.calc!=PE1||held.job==0||ibr==0||std::find(copies.begin(),copies.end(),ibr)!=copies.end())continue;
+      copies.push_back(ibr);
+    }
+    if(!copies.empty()){
+      std::string named;
+      for(const int ibr:copies){
+        diagram_remove_branch(s,ibr);
+        named+=(named.empty()?"":", ")+std::to_string(ibr);
+      }
+      redraw_diagram(s);
+      const std::string why=xpp::format("the follow-all copy of branch {} (the cycles of the Hopf point labelled {}, which a follow-all job traced) is replaced by this run, which stores its own cycles in its place",
+                                        named,label);
+      xpp::log(XPP_LOG_WARN,"autoX: {}",why);
+      s.autox_state->stop.notes.push_back(why);
+    }
+  }
   s.autox_state->blrtn.torper=s.autox_state->grabpt.torper;
   
   /*Prevent crash on hopf of infinite period. here

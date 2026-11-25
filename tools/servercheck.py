@@ -681,6 +681,53 @@ def check_script_repeated_run():
         shutil.rmtree(folder, ignore_errors=True)
 
 
+def check_script_hopf_cycles_replace():
+    """W868 (#950): a script's periodic run from a Hopf point whose cycles a follow-all job already traced (the steady run's copy) replaces
+    that copy: the named run runs with its own options, the copy goes out of the diagram before it stores its branch, and the log
+    says once which branch it replaced. Two named runs from one Hopf point both run (bautin_near_hopf: cycles_up and cycles_down).
+    The finite-period rows are 19 (the steady run's Hopf point and the 18 cycle points); with the copy they would be 29"""
+    folder = tempfile.mkdtemp(prefix='xppw868hopf')
+    try:
+        shutil.copy(autoxcompare.ROOT / 'tools/models/bautin_near_hopf.odex', folder)
+        run = '  { name: "%s", kind: periodic, replace_diagram: false, start: { run: "steady", type: hopf, index: 1 }, parameters: ["b1"],\n    options: { step.initial: %s, step.min: 1e-05, step.max: 0.1, limits.steps: 10, output.every: 100, limits.parameter_min: -0.1, limits.parameter_max: 0.1, mesh.intervals: 20, max_branch_switches: 0 } },\n'
+        with open(os.path.join(folder, 'hopf.autox'), 'w', encoding='utf-8') as f:
+            f.write('version: 4,\nmodel: "bautin_near_hopf.odex",\ndiagram: "hopf.csv",\nruns: [\n'
+                    '  { name: "steady", kind: equilibrium, replace_diagram: true, parameters: ["b1"],\n'
+                    '    options: { step.initial: 0.002, step.min: 1e-05, step.max: 0.005, limits.steps: 10, output.every: 100, limits.parameter_min: -0.1, limits.parameter_max: 0.01, mesh.intervals: 20, max_branch_switches: 0 } },\n'
+                    + run % ('cycles_up', '0.02') + run % ('cycles_down', '-0.02') + ']\n')
+        # the page's list, replayed from the diagram events, holds the store's points in order: the branch of each (the replacement is a redraw the page follows)
+        s_page = Server(args.server, os.path.join(folder, 'hopf.autox'), run=folder)
+        try:
+            autoxcompare.completed(s_page)
+            autoxcompare.completed(s_page, dict(cmd='events.subscribe', events=['autox.info'], diagram=True))
+            s_page.send(cmd='autox.run_script')
+            evs, end = s_page.collect(autoxcompare.is_done, timeout=300 * SLOW)
+            page = []
+            for e in evs:
+                if e.get('ev') != 'autox.diagram' or e.get('view') != 'diagram_1':
+                    continue
+                if e['op'] == 'reset':
+                    del page[e['keep']:]
+                elif e['op'] == 'add':
+                    del page[e['from']:]
+                    for r in e['runs']:
+                        for i in range(len(r['x'])):
+                            page.append(abs(r['br']))
+            store = [abs(int(r['ibr'])) for r in autoxcompare.diagram_rows(autoxcompare.session_diagram(s_page))]
+            check('W868 (#950): the page\'s diagram, replayed from its events, is the store\'s points after the replacement',
+                  end is not None and page == store and len(store) > 0, 'page %s, stored %s' % (page[:12], store[:12]))
+        finally:
+            s_page.close()
+        proc = subprocess.run([os.path.abspath(args.server), 'hopf.autox', '--silent'], cwd=folder, capture_output=True, text=True, timeout=300 * SLOW)
+        rows = list(csv.DictReader(open(os.path.join(folder, 'hopf.csv'), encoding='utf-8')))
+        periodic = sum(1 for row in rows if row['period'] not in ('nan', ''))
+        check('W868 (#950): a named periodic run from a Hopf point replaces the follow-all copy of its cycles, once logged: both named runs store their cycles, and the copy is gone',
+              proc.returncode == 0 and proc.stderr.count('is replaced by this run') == 1 and 'not made' not in proc.stderr and periodic == 19,
+              '%s %s %s' % (proc.returncode, periodic, proc.stderr[:300]))
+    finally:
+        shutil.rmtree(folder, ignore_errors=True)
+
+
 def check_autox_two_parameter_starts():
     d = autoxcompare.read_description(autoxcompare.BASE / 'tstauto_ab_fold.json')
     s = Server(args.server, autoxcompare.ROOT / d['model'])
@@ -3690,7 +3737,7 @@ def check_options_panels():
 
 
 
-INDEPENDENT_SECTIONS = {'replace': check_replace_answer, 'export': check_export_several, 'options': check_options_panels, 'atomic': check_atomic_commands, 'equilibria': check_equilibrium_settings, 'registry': check_registry, 'branchjobs': check_autox_branch_jobs, 'session': check_session_commands, 'data': check_data_value_set, 'kinescope': check_kinescope_animation_array_plot, 'firstpoint': lambda: (check_autox_first_point_stability(), check_autox_orbit_first_points(), check_autox_not_applicable()), 'stops': lambda: (check_stops(), check_autox_stops(), check_autox_starts(), check_script_refused_run(), check_script_repeated_run(), check_autox_two_parameter_starts(), check_autox_periodic_start_kind(), check_autox_registry(), check_fit_stops(), check_event_count_note(), check_autox_restart_file_stops(), check_autox_multiplier_note(), check_autox_singular_pivot())}
+INDEPENDENT_SECTIONS = {'replace': check_replace_answer, 'export': check_export_several, 'options': check_options_panels, 'atomic': check_atomic_commands, 'equilibria': check_equilibrium_settings, 'registry': check_registry, 'branchjobs': check_autox_branch_jobs, 'session': check_session_commands, 'data': check_data_value_set, 'kinescope': check_kinescope_animation_array_plot, 'firstpoint': lambda: (check_autox_first_point_stability(), check_autox_orbit_first_points(), check_autox_not_applicable()), 'stops': lambda: (check_stops(), check_autox_stops(), check_autox_starts(), check_script_refused_run(), check_script_repeated_run(), check_script_hopf_cycles_replace(), check_autox_two_parameter_starts(), check_autox_periodic_start_kind(), check_autox_registry(), check_fit_stops(), check_event_count_note(), check_autox_restart_file_stops(), check_autox_multiplier_note(), check_autox_singular_pivot())}
 if args.only:
     for name in args.only.split(','):
         if name not in INDEPENDENT_SECTIONS:
@@ -13879,6 +13926,7 @@ check_autox_range_branch()
 check_autox_starts()
 check_script_refused_run()
 check_script_repeated_run()
+check_script_hopf_cycles_replace()
 check_autox_two_parameter_starts()
 check_autox_periodic_start_kind()
 check_autox_directions()

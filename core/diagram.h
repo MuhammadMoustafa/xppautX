@@ -68,6 +68,9 @@ void bound_diagram(xpp::AutoxParts s, double *xlo, double *xhi, double *ylo, dou
    s's diagram: each point's index set, the
    first point filled in (DiagFlag); none is start_diagram's empty diagram */
 void diagram_restore(xpp::AutoxParts s, std::deque<xpp::DIAGRAM> points);
+/* the points of branch ibr (its absolute number) are taken out of the diagram, the rest renumbered: the caller redraws it. Returns
+   how many points went (W868, #950: a named run replaces the follow-all copy of its Hopf point's cycles) */
+std::size_t diagram_remove_branch(xpp::AutoxParts s, int ibr);
 /* Resolve a model parameter (its Model index) of a point from its immutable branch constants and continued values. */
 double diagram_parameter(const xpp::DIAGRAM &point, int parameter);
 /* What a point's axis is worth: the model parameter's value, the point's period for the period, 0 for another
