@@ -177,7 +177,8 @@ export class DiagramChart {
     const facets: uPlot.Series.Facet[] = [{scale: 'x', auto: false}, {scale: 'y', auto: false}];
     const series: uPlot.Series[] = m.curves.map(c => ({
       label: `Branch ${c.branch}`,
-      stroke: c.cssColor ?? cssColor(c.color), show: c.visible !== false,
+      /* read when drawn, as the axes are: a theme switch sets --fg after the chart is made */
+      stroke: () => c.cssColor ?? cssColor(c.color), show: c.visible !== false,
       width: c.width,
       dash: c.dashed ? DASH : undefined,
       paths: this.linePath,
