@@ -11,7 +11,7 @@ import uPlot from 'uplot';
 import type {Range, Viewport} from '../store/plots';
 import {cssColor} from './colors';
 import {pointMark} from '../store/pointTypes';
-import {fitRanges, labelShape, nearestVertex, type DiagramHit, type DiagramModel, type LabelShape} from './diagramModel';
+import {fitRanges, labelCoded, labelMark, nearestVertex, type DiagramHit, type DiagramModel, type SymbolMark} from './diagramModel';
 import {placeLabels} from './labelPlace';
 import type {Ranges} from './viewmath';
 
@@ -34,11 +34,14 @@ const NAMED_MAX = 40;
 const DASH = [6, 4];
 
 
-/** a labelled point's shape (T29), `r` canvas pixels from its centre; the
-    caller sets `ctx`'s stroke/fill style first. Outlines except HB's
-    filled circle, so a dense diagram still reads its lines through them. */
-function strokeShape(ctx: CanvasRenderingContext2D, shape: LabelShape, x: number, y: number, r: number): void {
-  switch (shape) {
+/** a labelled point's mark (T29, W863), `r` canvas pixels from its centre; the
+    caller sets `ctx`'s stroke/fill style first. A filled mark is painted
+    solid (an equilibrium's label, a two-parameter point, a bar's end), a hollow
+    one as an outline (a cycle's label); a dense diagram still reads its lines
+    through the hollow ones. */
+function drawMark(ctx: CanvasRenderingContext2D, mark: SymbolMark, x: number, y: number, r: number): void {
+  const paint = (): void => (mark.filled ? ctx.fill() : ctx.stroke());
+  switch (mark.shape) {
     case 'circle':
       ctx.beginPath();
       ctx.arc(x, y, r * 0.75, 0, 2 * Math.PI);
@@ -46,13 +49,13 @@ function strokeShape(ctx: CanvasRenderingContext2D, shape: LabelShape, x: number
       return;
     case 'triangle':
     case 'invTriangle': {
-      const up = shape === 'triangle' ? -1 : 1;
+      const up = mark.shape === 'triangle' ? -1 : 1;
       ctx.beginPath();
       ctx.moveTo(x, y + up * r);
       ctx.lineTo(x + r * 0.9, y - up * r * 0.65);
       ctx.lineTo(x - r * 0.9, y - up * r * 0.65);
       ctx.closePath();
-      ctx.stroke();
+      paint();
       return;
     }
     case 'diamond':
@@ -62,10 +65,11 @@ function strokeShape(ctx: CanvasRenderingContext2D, shape: LabelShape, x: number
       ctx.lineTo(x, y + r);
       ctx.lineTo(x - r, y);
       ctx.closePath();
-      ctx.stroke();
+      paint();
       return;
     case 'square':
-      ctx.strokeRect(x - r * 0.8, y - r * 0.8, r * 1.6, r * 1.6);
+      if (mark.filled) ctx.fillRect(x - r * 0.8, y - r * 0.8, r * 1.6, r * 1.6);
+      else ctx.strokeRect(x - r * 0.8, y - r * 0.8, r * 1.6, r * 1.6);
       return;
     case 'star':
       ctx.beginPath();
@@ -75,7 +79,7 @@ function strokeShape(ctx: CanvasRenderingContext2D, shape: LabelShape, x: number
         if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py);
       }
       ctx.closePath();
-      ctx.stroke();
+      paint();
       return;
     case 'bar':
       ctx.beginPath();
@@ -227,20 +231,26 @@ export class DiagramChart {
     ctx.lineWidth = 1.25 * r;
     ctx.font = `${Math.round(11 * r)}px Inter, system-ui, sans-serif`;
     ctx.textBaseline = 'top';
-    this.named = shown.length <= NAMED_MAX ? shown.length : 0;
-    /* a live point of a running job has its type but no number until the join (lab 0) */
+    /* a live point of a running job has its type but no number until the join (lab 0); a special
+       point always carries its code (W863), a plain numbered point only in a sparse diagram */
+    const allNamed = shown.length <= NAMED_MAX;
+    const named = shown.map(s => allNamed || labelCoded(s.l.sym));
     const names = shown.map(s => [s.l.sym ? pointMark(s.l.sym) : '', s.l.lab || ''].filter(Boolean).join(' '));
     /* two names at one spot are written a line apart (plot/labelPlace.ts) */
-    const tops = this.named ? placeLabels(shown.map((s, i) => ({x: s.px + 5 * r, y: s.py + 3 * r,
-      w: ctx.measureText(names[i]).width, h: 13 * r}))) : [];
+    const written = shown.map((_, i) => i).filter(i => named[i]);
+    const laid = placeLabels(written.map(i => ({x: shown[i].px + 5 * r, y: shown[i].py + 3 * r,
+      w: ctx.measureText(names[i]).width, h: 13 * r})));
+    const tops = shown.map(() => 0);
+    written.forEach((i, k) => { tops[i] = laid[k]; });
+    this.named = written.length;
     this.nameTops = tops.map(t => t / r);
     shown.forEach((s, i) => {
-      const shape = labelShape(s.l.sym), light = shape === 'tick';
+      const mark = labelMark(s.l.sym), light = mark.shape === 'tick';
       ctx.strokeStyle = light ? fgMuted : fg;
       ctx.fillStyle = light ? fgMuted : fg;
       const rad = light ? arm * 0.55 : arm;
-      for (const y of s.py2 === null ? [s.py] : [s.py, s.py2]) strokeShape(ctx, shape, s.px, y, rad);
-      if (this.named) {
+      for (const y of s.py2 === null ? [s.py] : [s.py, s.py2]) drawMark(ctx, mark, s.px, y, rad);
+      if (named[i]) {
         ctx.fillStyle = fg;
         ctx.fillText(names[i], s.px + 5 * r, tops[i]);
       }

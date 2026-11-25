@@ -105,14 +105,16 @@ it back. It has:
   stopped" below), and autoX's Output gets the same as a line for every
   branch that ends ("Branch 1 stopped at point 49: ...");
 - the diagram's **key** lists the label types it has, spelled out with its label and mark (End of branch EP,
-  Andronov–Hopf AH, ...), each with its meaning as a tooltip and the same
-  shape it is drawn with on the diagram (a filled circle at a Hopf point,
-  a triangle at a fold, a diamond at a branch point, a square at a period
-  doubling, a star at a torus, an inverted triangle at a user point, a
-  bold cross where autoX could not converge, a bar at an end point, and a
-  small, lighter dot at a plain numbered point — so a long run's regular
-  output no longer reads as a row of crosses); hovering a labelled point
-  names its type; the point where the last run ended also says why;
+  Andronov–Hopf AH, ...), each with its meaning as a tooltip and the same mark it is drawn with on the diagram.
+  One rule gives the marks (W863): the **shape** gives the kind of point, the **fill** says what it lies on (filled
+  for an equilibrium's label, hollow for a cycle's: a filled triangle LP, a hollow triangle LPC, a filled diamond BP,
+  a hollow diamond BPC), a **small filled square** is a two-parameter (codimension-two) point (BT, CP, ZH, GH, R1-R4,
+  LPPD, LPNS, PDNS, NSNS), and a **bar** is where a branch ended, its code saying how (EP, SNIC, HOC, HEC, HBE, CL).
+  The code is drawn beside every special point, so the bars and the squares are told apart by their code. Other
+  shapes: a hollow square at a period doubling (PD), a hollow star at a torus (NS), a filled circle at a Hopf point
+  (AH), a filled inverted triangle at a user point (UZ), a bold cross where autoX could not converge (MX), and a
+  small, lighter dot at a plain numbered point, so a long run's regular output no longer reads as a row of crosses;
+  hovering a labelled point names its type; the point where the last run ended also says why;
 - an **Output** panel with autoX's printed table (`xpp_log_autox()`, always
   written in the window and in browser mode): the header, a row for every
   labelled point (the special ones and the plain ones Numerics' `output.every`

@@ -475,37 +475,67 @@ export function symbolHelp(sym: string): string {
   return SYMBOL_HELP[sym] ?? '';
 }
 
-/** T29: one shape per label type, so a long run's plain numbered points no
-    longer read as a row of crosses. The single source of truth for both
-    the diagram (diagramChart.ts's drawLabels) and the key
-    (ui/AutoxView.tsx): HB a filled circle, LP a triangle, BP a diamond, PD
-    a square, TR a star, UZ an inverted triangle, MX a bold cross, EP a
-    bar across the branch; a plain numbered point (no type) a small,
-    lighter dot; an unlisted code falls back to a cross. */
+/** W863: the shape gives the kind of point, the fill says what it lies on
+    (filled: an equilibrium's label, hollow: a cycle's), a small filled square
+    is a two-parameter point, a bar is where a branch ended (its code says
+    how), and the code is drawn beside every special point. The single source
+    of truth for both the diagram (diagramChart.ts's drawLabels) and the key
+    (ui/AutoxView.tsx): the one table both read. A plain numbered point (no
+    type, or an output point) is a small, lighter dot; an unlisted code falls
+    back to a cross. Shared marks are on purpose: every bar type, and every
+    two-parameter type, is one family; no other type uses the bar or the filled square. */
 export type LabelShape = 'circle' | 'triangle' | 'diamond' | 'square' | 'star' | 'invTriangle' | 'cross' | 'bar' | 'tick';
 
-const LABEL_SHAPES: Record<string, LabelShape> = {
-  hopf: 'circle', fold: 'triangle', branch_point: 'diamond', period_doubling: 'square', neimark_sacker: 'star', user_point: 'invTriangle', no_convergence: 'cross', end: 'bar',
-  bogdanov_takens: 'diamond', cusp: 'triangle', zero_hopf: 'star', generalized_hopf: 'circle',
-  fold_flip: 'square', fold_neimark_sacker: 'triangle', flip_neimark_sacker: 'star', double_neimark_sacker: 'diamond',
-  cycle_fold: 'triangle', cycle_branch_point: 'diamond',
-  resonance_1_1: 'diamond', resonance_1_2: 'triangle', resonance_1_3: 'star', resonance_1_4: 'circle',
-  snic: 'bar', homoclinic: 'bar', heteroclinic: 'bar', hopf_end: 'bar', branch_closed: 'bar',
+export interface SymbolMark {
+  shape: LabelShape;
+  /** filled: an equilibrium's label; hollow: a cycle's */
+  filled: boolean;
+  /** a two-parameter (codimension-two) point: the filled square family */
+  twoParameter?: boolean;
+}
+
+export const LABEL_MARKS: Record<string, SymbolMark> = {
+  hopf: {shape: 'circle', filled: true}, fold: {shape: 'triangle', filled: true}, branch_point: {shape: 'diamond', filled: true},
+  user_point: {shape: 'invTriangle', filled: true}, no_convergence: {shape: 'cross', filled: true},
+  cycle_fold: {shape: 'triangle', filled: false}, cycle_branch_point: {shape: 'diamond', filled: false},
+  period_doubling: {shape: 'square', filled: false}, neimark_sacker: {shape: 'star', filled: false},
+  end: {shape: 'bar', filled: true}, snic: {shape: 'bar', filled: true}, homoclinic: {shape: 'bar', filled: true},
+  heteroclinic: {shape: 'bar', filled: true}, hopf_end: {shape: 'bar', filled: true}, branch_closed: {shape: 'bar', filled: true},
+  bogdanov_takens: {shape: 'square', filled: true, twoParameter: true}, cusp: {shape: 'square', filled: true, twoParameter: true},
+  zero_hopf: {shape: 'square', filled: true, twoParameter: true}, generalized_hopf: {shape: 'square', filled: true, twoParameter: true},
+  fold_flip: {shape: 'square', filled: true, twoParameter: true}, fold_neimark_sacker: {shape: 'square', filled: true, twoParameter: true},
+  flip_neimark_sacker: {shape: 'square', filled: true, twoParameter: true}, double_neimark_sacker: {shape: 'square', filled: true, twoParameter: true},
+  resonance_1_1: {shape: 'square', filled: true, twoParameter: true}, resonance_1_2: {shape: 'square', filled: true, twoParameter: true},
+  resonance_1_3: {shape: 'square', filled: true, twoParameter: true}, resonance_1_4: {shape: 'square', filled: true, twoParameter: true},
 };
 
 /** the plain points (no special type, and an output point) are the small dots */
 const PLAIN_TYPES = new Set(['', 'regular', 'output']);
 
-export function labelShape(sym: string): LabelShape {
-  return PLAIN_TYPES.has(sym) ? 'tick' : (LABEL_SHAPES[sym] ?? 'cross');
+/** a point's mark: the one table's entry, or the plain dot, or the cross of an unlisted code */
+export function labelMark(sym: string): SymbolMark {
+  if (PLAIN_TYPES.has(sym)) return {shape: 'tick', filled: true};
+  return LABEL_MARKS[sym] ?? {shape: 'cross', filled: true};
 }
 
-/** the key's glyph for a shape (a small Unicode mark, same shape the
-    canvas draws) */
-export const LABEL_GLYPH: Record<LabelShape, string> = {
-  circle: '●', triangle: '△', diamond: '◇', square: '□', star: '☆', invTriangle: '▽',
-  cross: '×', bar: '❙', tick: '·',
+export function labelShape(sym: string): LabelShape {
+  return labelMark(sym).shape;
+}
+
+/** a special point carries its code beside it (every type of the table, never a plain numbered point) */
+export function labelCoded(sym: string): boolean {
+  return LABEL_MARKS[sym] !== undefined;
+}
+
+/** the key's glyph for a mark (a small Unicode mark, the shape the canvas draws) */
+const MARK_GLYPHS: Record<string, string> = {
+  'circle': '●', 'triangle': '▲', 'triangle-hollow': '△', 'diamond': '◆', 'diamond-hollow': '◇',
+  'square': '■', 'square-hollow': '□', 'star-hollow': '☆', 'invTriangle': '▼', 'cross': '×', 'bar': '❙', 'tick': '·',
 };
+
+export function labelGlyph(mark: SymbolMark): string {
+  return MARK_GLYPHS[mark.shape + (mark.filled ? '' : '-hollow')] ?? MARK_GLYPHS[mark.shape] ?? '×';
+}
 
 /** the label types the diagram has, in the key's order (EP, MX, LP, HB, BP, PD, TR, UZ) */
 export function labelTypes(labels: {sym: string}[]): string[] {

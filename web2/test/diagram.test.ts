@@ -17,7 +17,7 @@ test('equilibrium and cycle codim-2 labels have names, legend entries and marks'
   const kinds = ['bogdanov_takens', 'cusp', 'zero_hopf', 'generalized_hopf', 'resonance_1_1', 'resonance_1_2', 'resonance_1_3', 'resonance_1_4', 'fold_flip', 'fold_neimark_sacker', 'flip_neimark_sacker', 'double_neimark_sacker'];
   assert.deepEqual(labelTypes(kinds.map(sym => ({sym}))).sort(), [...kinds].sort());
   assert.deepEqual(kinds.map(pointLabel), ['Bogdanov\u2013Takens', 'Cusp', 'Zero-Hopf (fold\u2013Hopf)', 'Generalized Hopf (Bautin)', 'Resonance 1:1', 'Resonance 1:2', 'Resonance 1:3', 'Resonance 1:4', 'Fold\u2013flip', 'Fold\u2013Neimark\u2013Sacker', 'Flip\u2013Neimark\u2013Sacker', 'Double Neimark\u2013Sacker']);
-  assert.deepEqual(kinds.map(labelShape), ['diamond', 'triangle', 'star', 'circle', 'diamond', 'triangle', 'star', 'circle', 'square', 'triangle', 'star', 'diamond']);
+  assert.deepEqual(kinds.map(labelShape), Array(kinds.length).fill('square')); // W863: every two-parameter point is the filled square
   assert.match(symbolHelp('generalized_hopf'), /Lyapunov coefficient/);
 });
 

@@ -70,7 +70,7 @@
    the one open command.
 
    node tools/web2check.mjs [--bin ./xppautX] [--browser PATH] [--webview2]
-     [--only popout,options,fieldhelp,dock,viewtabs,splitview,desktop,layout,phase,marks,autox,autoxmarks,autoxviews,lostf,keys,keymap,keymapeditor,pins,record,player,leave,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help,loaderror,startscreen,sets,cut] [-v]
+     [--only popout,options,fieldhelp,dock,viewtabs,splitview,desktop,layout,phase,marks,autox,labelmarks,autoxmarks,autoxviews,lostf,keys,keymap,keymapeditor,pins,record,player,leave,busy,view,three,aplot,files,live,million,ani,kinescope,runs,values,help,loaderror,startscreen,sets,cut] [-v]
    --only updates stubs GitHub before load. --webview2 is Windows only,
    requires --only desktop,files,help,updates,native (a selected subset),
    and runs files through native-binding fixtures; desktop omits browser file fixtures.
@@ -1936,11 +1936,12 @@ async function autoxView(dir) {
       && key23.every(([, , , , h]) => h.length > 30), JSON.stringify(key23));
   /* T29: one shape per label type (HB a filled circle, LP a triangle, ... a cross for a code this
      diagram does not name), the key's glyph the same mapping the diagram itself draws with */
-  const SHAPE_OF = {end: 'bar', no_convergence: 'cross', fold: 'triangle', hopf: 'circle', branch_point: 'diamond', period_doubling: 'square', torus: 'star', user_point: 'invTriangle'};
-  const GLYPH_OF = {circle: '●', triangle: '△', diamond: '◇', square: '□', star: '☆',
-    invTriangle: '▽', cross: '×', bar: '❙'};
-  check('T29: the key\'s shape for each present code matches the type -> shape mapping, drawn with that shape\'s glyph',
-    key23.length > 0 && key23.every(([s, shape, mark]) => shape === (SHAPE_OF[s] ?? 'cross') && mark === GLYPH_OF[shape]),
+  /* W863: the shape and glyph of each type (diagramModel.ts's LABEL_MARKS: the fill is the mark's
+     own glyph, filled for an equilibrium's label and hollow for a cycle's) */
+  const MARK_OF = {end: ['bar', '❙'], no_convergence: ['cross', '×'], fold: ['triangle', '▲'], hopf: ['circle', '●'],
+    branch_point: ['diamond', '◆'], period_doubling: ['square', '□'], neimark_sacker: ['star', '☆'], user_point: ['invTriangle', '▼']};
+  check('W863 (T29): the key\'s shape and glyph for each present code match its mark in LABEL_MARKS',
+    key23.length > 0 && key23.every(([s, shape, mark]) => (MARK_OF[s] ?? ['cross', '×']).join() === [shape, mark].join()),
     JSON.stringify(key23));
   check('after the run the store holds its last point\'s stability circle (autoxinfo)',
     await until('s.diagram.stab && s.diagram.stab.circle.length === 2 && s.diagram.stab.periodic === 0', 'run stab'),
@@ -3729,6 +3730,67 @@ async function autoxScriptShots(dir) {
   await cdp.eval(`document.querySelector('[data-script-run-button="steady"]').click()`);
   await requireUntil(`!s.busy && s.autoxScript.runs[0].done`, 'steady done');
   await frames('autox-script-done');
+  await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
+}
+
+/* W863: the mu26 control model's three runs (its description, tests/autox/ode_mu26_control.json: the
+   steady state, its cycles from the Hopf point, and the cycles to their SNIC) run as a script; the diagram
+   must hold a fold (LP), a cycle fold (LPC) and a SNIC, each drawn with its own mark and its code beside it.
+   With XPP_SHOTS set (--only shots) it also writes the diagram and its key at each width, light and dark. */
+function mu26Script(d) {
+  const opts = o => '{ ' + Object.entries(o).map(([k, v]) => `${k}: ${typeof v === 'string' ? `"${v}"` : JSON.stringify(v)}`).join(', ') + ' }';
+  const runs = d.runs.map((r, i) => {
+    const start = r.start.state ? '' : `start: { run: "${r.start.run}", type: ${r.start.type}, index: ${r.start.index} }, `;
+    /* the description's user-point marks (UZ) are not a run option of a script: they place points, never change a branch */
+    return `  { name: "${r.name}", kind: ${r.kind}, ${i === 0 ? 'replace_diagram: true, ' : ''}${start}parameters: ["${r.parameter}"], options: ${opts(r.autox)} },`;
+  });
+  return `version: 4,\nmodel: "mu26.odex",\nruns: [\n${runs.join('\n')}\n]\n`;
+}
+async function autoxLabelMarks(dir) {
+  await desktopMetrics();
+  await until('s.hello && !s.busy', 'hello');
+  const description = JSON.parse(fs.readFileSync(path.join(top, 'tests/autox/ode_mu26_control.json'), 'utf8'));
+  fs.writeFileSync(path.join(dir, 'mu26_control.autox'), mu26Script(description));
+  await openFile('mu26_control.autox');
+  await until("s.ask && s.ask.kind === 'choice'", 'save first?');
+  await answerAsk({key: 'd'});
+  await requireUntil(`!s.busy && s.autoxScript.open && s.autoxScript.runs.length === ${description.runs.length}`, 'the script open').catch(async e => { throw new Error(e.message + ' ' + JSON.stringify([await S('s.busy'), await S('s.ask && s.ask.kind'), await S('s.autoxScript && s.autoxScript.open'), await S('JSON.stringify(s.autoxScript).slice(0, 300)'), await cdp.eval('__xpp.log().slice(-4).map(l => l.text || l.msg || JSON.stringify(l)).join(" / ")')])); });
+  await openAutoxPanel();
+  const t0 = Date.now();
+  await cdp.eval(`document.querySelector('[data-script-run-all]').click()`);
+  check('W863: the mu26 control script runs its three runs to the end',
+    await until(`!s.busy && s.autoxScript.runs.every(r => r.done)`, 'mu26 runs done', 900000));
+  perf('W863: mu26 control script, three runs (s)', Math.round((Date.now() - t0) / 1000));
+  const syms = await DS('d.labels.map(l => l.sym)');
+  check('W863: the diagram holds a fold (LP), a cycle fold (LPC) and a SNIC', ['fold', 'cycle_fold', 'snic'].every(s => syms.includes(s)),
+    JSON.stringify([...new Set(syms)]));
+  const key = await cdp.eval(`[...document.querySelectorAll('.autox-legend-label')].map(l => [l.dataset.sym, l.dataset.shape, l.dataset.filled, l.querySelector('.autox-label-mark').textContent])`);
+  const marks = ['fold', 'cycle_fold', 'snic'].map(s => key.find(k => k[0] === s));
+  check('W863: LP, LPC and SNIC are drawn with three different marks (filled triangle, hollow triangle, bar)',
+    marks.every(Boolean) && new Set(marks.map(m => `${m[1]}/${m[2]}`)).size === 3
+      && marks[0][1] === 'triangle' && marks[0][2] === 'true' && marks[1][1] === 'triangle' && marks[1][2] === 'false' && marks[2][1] === 'bar',
+    JSON.stringify(marks));
+  const dg = await cdp.eval('__xpp.diagram()');
+  /* a label is in view when its point, or its second value, is inside the axes: only those are drawn (and named) */
+  const inside = (v, r) => v !== null && v >= Math.min(r.min, r.max) && v <= Math.max(r.min, r.max);
+  const shown = dg.labels.filter(l => inside(l.x, dg.x) && (inside(l.y, dg.y) || inside(l.y2, dg.y)));
+  const coded = shown.filter(l => l.sym).length;
+  check('W863: every special point in view carries its code beside it (the names drawn cover the labels)',
+    coded >= 3 && dg.named >= coded, `named ${dg.named} of ${coded} special labels in view (${dg.labels.length} in all)`);
+  const out = process.env.XPP_SHOTS;
+  if (!out) return;
+  fs.mkdirSync(out, {recursive: true});
+  for (const [size, width, height, mobile] of [['375', 375, 812, true], ['768', 768, 1024, false], ['1280', 1280, 860, false]]) {
+    for (const scheme of ['light', 'dark']) {
+      await cdp.send('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile});
+      await cdp.send('Emulation.setEmulatedMedia', {features: [{name: 'prefers-color-scheme', value: scheme}]});
+      await rendered();
+      await cdp.eval(`document.querySelector('.autox-view').scrollIntoView({block: 'start'})`);
+      await rendered();
+      fs.writeFileSync(path.join(out, `mu26-diagram-key-${size}-${scheme}.jpg`),
+        Buffer.from((await cdp.send('Page.captureScreenshot', {format: 'jpeg', quality: 85})).data, 'base64'));
+    }
+  }
   await cdp.send('Emulation.setDeviceMetricsOverride', {width: 1280, height: 860, deviceScaleFactor: 1, mobile: false});
 }
 
@@ -8751,6 +8813,7 @@ async function main() {
     if (run('splitview')) await session(ODE, splitViewCheck);
     if (run('splitview')) await session(ODE, splitViewAutoxCheck);
     if (run('autox')) await session(AB_ODE, autoxScriptCheck);
+    if (run('labelmarks')) await session(path.join(top, 'examples/ode/mu26.odex'), autoxLabelMarks);
     if (run('popout')) await session(ODE, popOutCheck);
     if (run('dialogs')) await session(ODE, dialogsCheck, ['command:1: Total time must be a number of at least 0']);
     if (opt.only && opt.only.split(',').includes('shots')) await session(ODE, settingsShots, ['command:1: Total time must be a number of at least 0']); /* only on request: the UI review's pictures (XPP_SHOTS=folder) */

@@ -60,7 +60,7 @@ import {pointLabel, pointMark} from '../store/pointTypes';
 import {cssColor} from '../plot/colors';
 import {stopPoint} from '../plot/autoxStatus';
 import {
-  buildDiagramModel, carryAppearance, describePoint, grabStep, kindLabel, labelShape, LABEL_GLYPH, labelTypes, legendEntries, stepLabel,
+  buildDiagramModel, carryAppearance, describePoint, grabStep, kindLabel, labelGlyph, labelMark, labelTypes, legendEntries, stepLabel,
   symbolHelp, vertexOf, type DiagramModel,
 } from '../plot/diagramModel';
 import {attachGestures, type PickSink} from '../plot/interactions';
@@ -455,10 +455,11 @@ function DiagramPane({view, dark, compact = false}: {view: number; dark: boolean
             </li>
           ))}
           {labelTypes(model.labels).map(sym => {
-            const shape = labelShape(sym);
+            const mark = labelMark(sym);
             return (
-              <li key={sym} class="autox-legend-label" data-sym={sym} data-shape={shape} title={symbolHelp(sym)}>
-                <span class={`autox-label-mark autox-label-mark-${shape}`} aria-hidden="true">{LABEL_GLYPH[shape]}</span>
+              <li key={sym} class="autox-legend-label" data-sym={sym} data-shape={mark.shape} data-filled={String(mark.filled)}
+                title={symbolHelp(sym)}>
+                <span class={`autox-label-mark autox-label-mark-${mark.shape}${mark.filled ? '' : ' hollow'}`} aria-hidden="true">{labelGlyph(mark)}</span>
                 <b>{pointMark(sym)}</b> {pointLabel(sym)}
               </li>
             );
