@@ -7,9 +7,8 @@ Against the approved picture (../ui-review-2026-11-23/w855_run_dialog.jpg): five
 label with its mark, type, parameter value and branch ("AH 2 · Andronov–Hopf · iapp = 0.2625 · branch 1"); the kinds are the core's for a
 Hopf point, a two-parameter run named "Hopf curve"; Increase / Decrease / Both; Stop outside as one row; numerics one group, open at 1280.
 Since the review: the kind a point starts by its type is first and picked (a Hopf point: Periodic orbits; three cards across at 768, one column at 375
-and 1280); the start list names the branch's direction ("branch 1 (iapp up)"); the numerics' summary line shows the key values in force and "N changed"
+and 1280); under the start list, a line names the branch's direction ("Along branch 1, iapp rises from this point."), so a long label never cuts it; the numerics' summary line shows the key values in force and "N changed"
 after it; the numerics are compact label-left rows with small fields, their sections side by side at 1280 and one column below; the checkbox rows have the
 box before the full-width text; Stop outside's two inputs are styled as the other fields.
 Differences that remain: the numerics' sections are of unequal heights (the picture's are even rows of Step | Limits, Mesh | Newton, with the first
-section here the unnamed one holding the branch switches); the numerics' help is a tooltip on the field, not a "?"; the direction is cut by the select's
-width at 1280 ("(iapp up" for a long label); the dialog keeps no Cancel button (x and Run only: no dialog of the app has one), which the picture shows.
+section here the unnamed one holding the branch switches); the numerics' help is a tooltip on the field, not a "?"; the dialog keeps no Cancel button (x and Run only: no dialog of the app has one), which the picture shows.

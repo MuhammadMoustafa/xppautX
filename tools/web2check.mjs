@@ -2252,8 +2252,8 @@ async function autoxView(dir) {
   check("W855: a Hopf point's first kind is Periodic orbits, and it is the one picked",
     await cdp.eval(`(() => { const st = __xpp.state(); const first = document.querySelector('.run-kinds [data-choice]');
       return st.diagram.start?.type === 'hopf' && first?.dataset.choice === 'periodic' && first.classList.contains('on') && first.querySelector('input').checked; })()`));
-  check("W855: the start list names the branch's direction at the label ('(<parameter> up)' or 'down')",
-    await cdp.eval(`/ \\([^ )]+ (up|down)\\)$/.test(document.querySelector('.run-form select[aria-label="Labelled point"] option:checked')?.textContent ?? '')`));
+  check("W855: under the start list, the branch's direction at the label ('Along branch N, <parameter> rises' or 'falls'), never cut with the list",
+    await cdp.eval(`/^Along branch \\d+, \\S+ (rises|falls) from this point\\.$/.test(document.querySelector('.run-form [data-run-direction]')?.textContent ?? '')`));
   /* the dialog's pictures for the UI review (XPP_SHOTS=folder): three widths, light and dark; never a check */
   if (process.env.XPP_SHOTS) {
     fs.mkdirSync(process.env.XPP_SHOTS, {recursive: true});

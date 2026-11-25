@@ -81,6 +81,7 @@ export function AutoxRunDialog({onClose}: {onClose(): void}) {
   /* 1 where to start: a labelled point (the grabbed one first), or the current state */
   const [fromLabel, setFromLabel] = useState(!!start);
   const [label, setLabel] = useState<number>(start?.label ?? labels[0]?.lab ?? 0);
+  const chosen = labels.find(l => l.lab === label);
   /* 2 what to compute: the grabbed point's kinds once autoxinfo's start is for the label picked, else the current state's */
   const startKinds = fromLabel ? (start && start.label === label ? start.kinds : []) : (table?.current ?? []);
   const first = fromLabel && start && start.label === label ? FIRST_KIND[start.type] : undefined;
@@ -160,18 +161,18 @@ export function AutoxRunDialog({onClose}: {onClose(): void}) {
   };
 
   /* a labelled point's name in the list, as the key names it: its mark, label and type, the parameter's value and its branch */
-  /* the branch's direction at a label: the sign of x at the next point of the same branch minus x here (the previous point's, when the label
-     ends its branch); nothing when the label has neither */
+  /* the branch's direction at a label, shown under the list (a closed list cuts a long name): the sign of x at the next point of the same branch
+     minus x here (the previous point's, when the label ends its branch); nothing when the label has neither */
   const directionAt = (point: number): string => {
     const {x, br} = view.points, next = point + 1, prev = point - 1;
     const other = next < br.length && br[next] === br[point] ? next : prev >= 0 && br[prev] === br[point] ? prev : -1;
     if (other < 0) return '';
     const dx = other === next ? x[next] - x[point] : x[point] - x[prev];
-    return dx === 0 || !Number.isFinite(dx) ? '' : ` (${view.axes?.xlabel ?? parameter} ${dx > 0 ? 'up' : 'down'})`;
+    return dx === 0 || !Number.isFinite(dx) ? '' : `Along branch ${br[point]}, ${view.axes?.xlabel ?? parameter} ${dx > 0 ? 'rises' : 'falls'} from this point.`;
   };
   const labelName = (l: {lab: number; sym: string; point: number}): string => {
     const x = view.points.x[l.point], where = Number.isFinite(x) ? ` · ${view.axes?.xlabel ?? parameter} = ${Number(x.toPrecision(4))}` : '';
-    return `${pointMark(l.sym) || l.sym || 'point'} ${l.lab} · ${pointLabel(l.sym) || 'Point'}${where} · branch ${view.points.br[l.point]}${directionAt(l.point)}`;
+    return `${pointMark(l.sym) || l.sym || 'point'} ${l.lab} · ${pointLabel(l.sym) || 'Point'}${where} · branch ${view.points.br[l.point]}`;
   };
   const pick = (lab: number) => {
     setLabel(lab);
@@ -211,10 +212,13 @@ export function AutoxRunDialog({onClose}: {onClose(): void}) {
         <fieldset class="form-group run-step" data-run-step="start">
           <legend>1 · Start from</legend>
           {card(fromLabel, () => setFromLabel(true), 'A labelled point in the diagram', 'The grabbed point is chosen for you. Click any label on the plot to choose another.',
-            labels.length ? <select aria-label="Labelled point" data-argument="label" value={String(label)} disabled={!fromLabel}
-              onChange={e => pick(Number(e.currentTarget.value))}>
-              {labels.map(l => <option key={`${l.point}-${l.lab}`} value={String(l.lab)}>{labelName(l)}</option>)}
-            </select> : null, {'data-argument-start': 'label'})}
+            labels.length ? <>
+              <select aria-label="Labelled point" data-argument="label" value={String(label)} disabled={!fromLabel}
+                onChange={e => pick(Number(e.currentTarget.value))}>
+                {labels.map(l => <option key={`${l.point}-${l.lab}`} value={String(l.lab)}>{labelName(l)}</option>)}
+              </select>
+              {chosen && fromLabel && directionAt(chosen.point) ? <span class="value-hint" data-run-direction>{directionAt(chosen.point)}</span> : null}
+            </> : null, {'data-argument-start': 'label'})}
           {card(!fromLabel, () => setFromLabel(false), 'The current state', "The Values' initial conditions and parameters, as a steady state")}
         </fieldset>
         <fieldset class="form-group run-step" data-run-step="compute">
